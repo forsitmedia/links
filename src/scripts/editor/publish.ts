@@ -67,8 +67,9 @@ function failed(body: HTMLElement, message: string) {
 /** One time: a GitHub key that can only change this one repository, so the worker can publish. */
 function connectGithub(body: HTMLElement, repo: string, expired: boolean): HTMLElement {
   const [owner, name] = (repo || '/').split('/');
+  // The name gets a timestamp: GitHub refuses a second key with the same name.
   const keyUrl = 'https://github.com/settings/personal-access-tokens/new?' + new URLSearchParams({
-    name: `yourlinki ${name} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`.slice(0, 40), // unique: GitHub refuses repeated names description: `Lets the yourlinki editor publish ${repo}`, target_name: owner, expires_in: 'none', contents: 'write' });
+    name: `yourlinki ${name} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`.slice(0, 40), description: `Lets the yourlinki editor publish ${repo}`, target_name: owner, expires_in: 'none', contents: 'write' });
   let token = '';
   const connect = async () => {
     const res = await api('/github', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) }).catch(() => null);
