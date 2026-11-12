@@ -356,3 +356,51 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
 [data-size] :is(h1, h2, p, span, figcaption), .bio[data-size], .row-link[data-size], .primary[data-size] { -webkit-hyphens: auto; hyphens: auto; hyphenate-limit-chars: 12 5 5; }
 /* Buttons placed beside a taller item keep their own height instead of stretching to match it. */
 .stack .row-link[data-layout-span], .stack .primary[data-layout-span] { align-self: center; }
+
+/* ── Feel: surfaces, motion and touch response, shared by every template. ── */
+.glass {
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
+}
+p, .bio { text-wrap: pretty; }
+
+/* A short bio is a subtitle under the name, never a box. */
+.page .bio.tagline {
+  background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+  padding: 0 4px; margin-top: -4px; text-align: center;
+  font-size: 16px; line-height: 1.45; letter-spacing: -.005em; color: var(--text); opacity: .78;
+}
+.template-studio .bio.tagline { text-align: left; font-size: 18px; }
+.template-bold .bio.tagline { font-size: 15px; }
+.page .bio.tagline[data-align="left"] { text-align: left; }
+.page .bio.tagline[data-align="right"] { text-align: right; }
+
+/* Buttons and cards spring back after a press, and lift a little under a mouse. */
+.primary, .row-link, .tile, .post-card, .media-card, .social a, .share {
+  transition: transform .45s cubic-bezier(.2,.9,.25,1.25), background-color .2s ease, box-shadow .3s ease, opacity .2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.page .primary:active, .page .row-link:active, .page .tile:active, .page .post-card:active { transform: scale(.97); transition-duration: .12s; }
+.social a:active, .share:active { transform: scale(.9); transition-duration: .12s; }
+.row-link svg { transition: transform .3s ease, opacity .3s ease; }
+.tile img { transition: transform .8s cubic-bezier(.2,.8,.2,1); }
+@media (hover: hover) {
+  .primary:hover, .row-link:hover, .post-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -14px rgba(0,0,0,.45); }
+  .primary:hover { filter: brightness(1.04); }
+  .row-link:hover svg { transform: translate(2px, -2px); opacity: .8; }
+  .tile:hover img { transform: scale(1.05); }
+  .social a:hover { transform: scale(1.08); }
+}
+
+/* Opening the page: items rise in, one after another. */
+@keyframes enter { from { opacity: 0; transform: translateY(14px); } }
+.intro .stack [data-block-id] { animation: enter .7s cubic-bezier(.16,1,.3,1) backwards; animation-delay: calc(var(--i, 0) * 55ms + 60ms); }
+.intro .share { animation: enter .7s cubic-bezier(.16,1,.3,1) .3s backwards; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, -10px) scale(.96); } }
+.toast { animation: toast-in .35s cubic-bezier(.2,.9,.3,1.2); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .intro .stack [data-block-id], .intro .share, .toast { animation: none; }
+  .primary, .row-link, .tile, .tile img, .post-card, .media-card, .social a, .share { transition: none; }
+}

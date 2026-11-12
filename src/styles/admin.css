@@ -409,7 +409,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-
   .stage-head .stage-close { display: block; }
   .canvas-workspace { display: flex; flex-direction: column; width: min(420px, 100%); gap: 10px; }
   .device-area { flex: 1; height: 0; min-height: 160px; }
-  .stage .preview-surface { position: static; width: 100%; height: 100%; padding: 0; transform: none; border-radius: 16px; box-shadow: none; background: transparent; }
+  .stage .preview-surface { position: relative; width: 100%; height: 100%; padding: 0; transform: none; border-radius: 16px; box-shadow: none; background: transparent; }
   .stage .preview-surface iframe { border-radius: 16px; }
   .canvas-inspector { height: min(230px, 34dvh); padding: 10px; border: 1px solid var(--sep); }
   .canvas-tools button, .canvas-actions button, .canvas-widths button, .canvas-parts button { min-height: 40px; }
@@ -456,3 +456,49 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-
 .spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--fill); border-top-color: var(--blue); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .publish form { display: block; }
+
+/* ── Feel: motion and touch response across the editor. ── */
+/* The next preview loads hidden behind the current one, then takes its place. */
+.preview-surface iframe.incoming { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); visibility: hidden; pointer-events: none; }
+@media (max-width: 900px) { .stage .preview-surface iframe.incoming { inset: 0; width: 100%; height: 100%; } }
+
+/* Segmented controls: the selection slides between options. */
+.seg { position: relative; isolation: isolate; --n: 1; --i: 0; }
+.seg:has(> button:nth-child(2)) { --n: 2; } .seg:has(> button:nth-child(3)) { --n: 3; }
+.seg:has(> button:nth-child(4)) { --n: 4; } .seg:has(> button:nth-child(5)) { --n: 5; } .seg:has(> button:nth-child(6)) { --n: 6; }
+.seg:has(> button:nth-child(2).on) { --i: 1; } .seg:has(> button:nth-child(3).on) { --i: 2; }
+.seg:has(> button:nth-child(4).on) { --i: 3; } .seg:has(> button:nth-child(5).on) { --i: 4; } .seg:has(> button:nth-child(6).on) { --i: 5; }
+.seg:has(> button.on)::before {
+  content: ''; position: absolute; z-index: -1; top: 2px; bottom: 2px; left: 2px;
+  width: calc((100% - 4px) / var(--n)); transform: translateX(calc(100% * var(--i)));
+  border-radius: 7px; background: var(--seg-on);
+  box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 1px 1px rgba(0,0,0,.04);
+  transition: transform .38s cubic-bezier(.3,.9,.3,1.08);
+}
+.seg button, .seg button.on { background: transparent; box-shadow: none; min-width: 0; transition: opacity .2s, font-weight .2s; }
+.seg button:not(.on):active { opacity: .55; }
+
+/* A new tab slides in softly; redraws inside a tab stay still. */
+@keyframes tab-in { from { opacity: 0; transform: translateY(6px); } }
+.tab-enter { animation: tab-in .32s cubic-bezier(.2,.8,.2,1); }
+
+/* Touch response */
+.btn-text, .group-h button, a.publish-btn, button.publish-btn { transition: opacity .2s ease, transform .3s cubic-bezier(.2,.9,.3,1.3); }
+.btn-text:not(:disabled):active, .group-h button:active { opacity: .45; transition-duration: .05s; }
+.publish-btn:active { transform: scale(.96); transition-duration: .1s; }
+button.row { transition: background-color .35s ease; }
+button.row:active { transition-duration: 0s; }
+.swatch { transition: transform .3s cubic-bezier(.2,.9,.3,1.4), box-shadow .2s ease; }
+.swatch:active { transform: scale(.88); transition-duration: .1s; }
+@media (hover: hover) { .swatch:hover { transform: scale(1.1); } }
+.preview-fab { transition: transform .3s cubic-bezier(.2,.9,.3,1.3); }
+.preview-fab:active { transform: scale(.95); }
+
+/* Toasts drop in from the top, sheets glide (rise is defined above). */
+@keyframes toast-drop { from { opacity: 0; transform: translate(-50%, -12px) scale(.95); } }
+.toast { animation: toast-drop .35s cubic-bezier(.2,.9,.3,1.2); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+
+/* Publishing finished: the check pops in. */
+@keyframes pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.12); } }
+.publish-status.done svg { animation: pop .5s cubic-bezier(.2,.9,.3,1.2); }
+.publish-status, .publish > * { animation: tab-in .3s ease both; }

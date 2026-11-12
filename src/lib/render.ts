@@ -57,12 +57,13 @@ ${themeColorMeta(cfg.look)}
 ${photo.startsWith('https:') ? `<meta property="og:image" content="${esc(photo)}">` : ''}
 <link rel="icon" href="favicon.ico" sizes="32x32"><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>${css}${lookColors(cfg.look)}</style>
-</head><body class="template-${cfg.look.template}" style="${esc(lookVars(cfg.look))}">
+</head><body class="template-${cfg.look.template}${preview ? '' : ' intro'}" style="${esc(lookVars(cfg.look))}">
 <div class="backdrop">${photoBg ? `<img src="${esc(backgroundImage)}" alt="">` : ''}</div>
 <main class="page">
 <button class="share glass" aria-label="Share">${icon('share', 18)}</button>
 <div class="stack">${blocks.join('\n')}</div>
 </main>
+${preview ? '' : INTRO_SCRIPT}
 ${MEDIA_SCRIPT}
 ${preview ? PREVIEW_SCRIPT
   : `${SCHEDULE_SCRIPT}${SHARE_SCRIPT}${cfg.stats ? statsScript(cfg.stats) : ''}\n<script type="application/json" id="${CONFIG_ID}">${JSON.stringify(cfg).replace(/</g, '\\u003c')}</script>`}
@@ -110,7 +111,11 @@ function identity(cfg: Config): string {
   return `<header class="identity" data-profile-part="name"${nameAlign ? ` data-align="${nameAlign}"` : ''}><h1>${esc(name)}</h1>${handle ? `<p class="handle">@${esc(handle.replace(/^@/, ''))}</p>` : ''}</header>`;
 }
 
+/** A short bio reads as a subtitle under the name; only longer text gets its own card. */
+export const isShortBio = (text: string) => text.trim().length <= 90 && !text.includes('\n');
+
 function bio(cfg: Config, data: string): string {
+  if (isShortBio(cfg.profile.bio)) return `<p class="bio tagline"${cfg.profile.nameAlign ? ` data-align="${esc(cfg.profile.nameAlign)}"` : ''} ${data}>${esc(cfg.profile.bio.trim())}</p>`;
   return cfg.look.template === 'minimal'
     ? `<section class="bio glass" ${data}><h2>About me</h2><p>${esc(cfg.profile.bio)}</p></section>`
     : `<p class="bio glass" ${data}>${esc(cfg.profile.bio)}</p>`;
@@ -206,6 +211,11 @@ document.addEventListener('click', (event) => {
   const url = link.getAttribute('href');
   if (!document.documentElement.classList.contains('canvas-editing') && url && url !== '#') window.open(url, '_blank', 'noopener');
 });
+</script>`;
+
+/** Items appear one after another when the page opens (the order of the page, top to bottom). */
+const INTRO_SCRIPT = `<script>
+document.querySelectorAll('.stack [data-block-id]').forEach((el, i) => el.style.setProperty('--i', Math.min(i, 10)));
 </script>`;
 
 /** Where the published page keeps its config for the editor. */
