@@ -5,7 +5,15 @@
  *
  * No cookies. A visitor is a hash of a random daily salt, IP and browser, so it can't be traced across days or back to an IP. */
 
-interface Env { DB: D1Database; STATS_PASSWORD?: string }
+interface Limiter { limit(o: { key: string }): Promise<{ success: boolean }> }
+interface Env { DB: D1Database; STATS_PASSWORD?: string; HITS?: Limiter; LOGINS?: Limiter }
+
+/* Spending guards. On Cloudflare's free plan nothing is ever billed (limits just stop requests), and these keep
+   usage far below even the free limits, whatever anyone sends:
+   - DAILY_CAP: at most this many visits + taps are recorded per day (UTC). Past it, nothing touches the database.
+   - HITS (wrangler.jsonc): one device can send at most 30 pings a minute.
+   - LOGINS (wrangler.jsonc): 5 password tries a minute per device, so the password can't be guessed. */
+const DAILY_CAP = 10_000;
 
 const enc = new TextEncoder();
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
@@ -33,12 +41,22 @@ async function dailySalt(db: D1Database, day: string) {
   if (salt.day === day) return salt.value;
   const key = 'salt:' + day;
   await db.batch([
-    db.prepare("DELETE FROM settings WHERE key LIKE 'salt:%' AND key != ?").bind(key),
+    db.prepare("DELETE FROM settings WHERE (key LIKE 'salt:%' OR key LIKE 'count:%') AND substr(key, instr(key, ':') + 1) != ?").bind(day),
     db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)').bind(key, crypto.randomUUID()),
   ]);
   const row = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first<{ value: string }>();
   salt = { day, value: row!.value };
   return salt.value;
+}
+
+let cappedDay = '';
+/** Counts one recorded hit for today; false once today's cap is reached. */
+async function underCap(db: D1Database, day: string) {
+  if (cappedDay === day) return false;
+  const row = await db.prepare("INSERT INTO settings (key, value) VALUES (?1, '1') ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1 WHERE CAST(value AS INTEGER) < ?2 RETURNING value")
+    .bind('count:' + day, DAILY_CAP).first();
+  if (!row) { cappedDay = day; console.warn('daily cap reached', day); }
+  return !!row;
 }
 
 async function hit(request: Request, env: Env, body: any) {
@@ -47,7 +65,9 @@ async function hit(request: Request, env: Env, body: any) {
   if (isBot(ua) || SCANNERS.has((request as any).cf?.asn) || !body || typeof body !== 'object') return;
   const item = typeof body.l === 'string' ? body.l.slice(0, 80) : null;
   const now = Date.now();
-  const id = enc.encode((await dailySalt(env.DB, new Date(now).toISOString().slice(0, 10))) + (h.get('cf-connecting-ip') ?? '') + ua);
+  const day = new Date(now).toISOString().slice(0, 10);
+  if (!(await underCap(env.DB, day))) return;
+  const id = enc.encode((await dailySalt(env.DB, day)) + (h.get('cf-connecting-ip') ?? '') + ua);
   const visitor = hex(await crypto.subtle.digest('SHA-256', id)).slice(0, 16);
   const row = [now, h.get('cf-ipcountry'), sourceOf(ua, body.r, body.s), deviceOf(ua), visitor];
   if (item) await env.DB.prepare('INSERT INTO clicks (ts, country, referrer, device, visitor, link_id) SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE NOT EXISTS (SELECT 1 FROM clicks WHERE visitor = ?5 AND link_id = ?6 AND ts > ?7)')
@@ -88,10 +108,13 @@ export default {
       // Read the body now: once the response is sent it can no longer be read.
       let body: unknown = null;
       try { body = JSON.parse((await request.text()).slice(0, 4000)); } catch {}
+      const ip = request.headers.get('cf-connecting-ip') ?? '';
+      if (env.HITS && !(await env.HITS.limit({ key: ip })).success) return new Response(null, { status: 204, headers: CORS });
       ctx.waitUntil(hit(request, env, body).catch((e) => console.error('tracking failed', e)));
       return new Response(null, { status: 204, headers: CORS });
     }
     if (url.pathname === '/stats' && request.method === 'GET') {
+      if (env.LOGINS && !(await env.LOGINS.limit({ key: request.headers.get('cf-connecting-ip') ?? '' })).success) return json({ error: 'Too many tries, wait a minute' }, 429);
       const pw = env.STATS_PASSWORD;
       const given = (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
       if (!pw || !eq(given, pw)) return json({ error: 'Wrong password' }, 401);
