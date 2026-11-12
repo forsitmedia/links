@@ -54,6 +54,8 @@ export type Config = {
   social: Social[];
   blocks: PageBlock[];
   look: Look;
+  /** Address of the creator's own stats worker (see stats/). Empty: the page sends nothing anywhere. */
+  stats?: string;
 };
 
 export const FONT_IDS = ['system', 'rounded', 'serif', 'mono', 'display'] as const;
@@ -85,6 +87,7 @@ export function normalize(raw: any = {}): Config {
     social: normalizeSocials(c.social),
     blocks: normalizeBlocks(c.blocks, links),
     look,
+    ...(typeof c.stats === 'string' && /^https:\/\/[^\s"'<>]+$/.test(c.stats) ? { stats: c.stats.replace(/\/+$/, '') } : {}),
   };
 }
 

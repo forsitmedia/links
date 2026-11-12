@@ -438,3 +438,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-
 .font-chip span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font: 9px -apple-system, system-ui, sans-serif; color: var(--sec); }
 .font-chip.on { outline: 2px solid var(--blue); outline-offset: -2px; }
 .font-chip.on span { color: var(--blue); }
+
+/* Insights */
+.stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+.stat-card { padding: 12px 14px; border-radius: 12px; background: var(--card); min-width: 0; }
+.stat-card b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.stat-card span { font-size: 13px; color: var(--sec); }
+.chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; padding: 16px; }
+.chart div { flex: 1; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--blue); }
+.chart .empty { margin: auto; color: var(--sec); font-size: 15px; }

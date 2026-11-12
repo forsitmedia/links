@@ -4,13 +4,14 @@ import { state, onChange, isDirty, changed, undo, redo, canUndo, canRedo } from 
 import { pageTab } from './page-tab';
 import { editPageBlock, editSocialIcon, addItemMenu } from './block-editor';
 import { settingsTab } from './settings-tab';
+import { insightsTab } from './insights-tab';
 import { openPublish } from './publish';
 import { welcome } from './welcome';
 import { VisualCanvas } from './canvas';
 import { h, segmented, svg } from './ui';
 
-type Tab = 'page' | 'settings';
-const TITLES: Record<Tab, string> = { page: 'Your Page', settings: 'Settings' };
+type Tab = 'page' | 'insights' | 'settings';
+const TITLES: Record<Tab, string> = { page: 'Your Page', insights: 'Insights', settings: 'Settings' };
 let tab: Tab = 'page';
 const saveBtn = h('button', { class: 'btn-text bold', type: 'button', onclick: openPublish }, 'Publish') as HTMLButtonElement;
 const canvasSave = h('button', { class: 'btn-text bold', type: 'button', 'aria-label': 'Publish page design', onclick: openPublish }, 'Publish') as HTMLButtonElement;
@@ -53,15 +54,21 @@ document.getElementById('app')!.append(h('div', { class: 'app' },
   h('div', { class: 'editor' },
     h('div', { class: 'navbar' }, h('a', { class: 'btn-text', href: '../', target: '_blank' }, 'View Page'), saveBtn),
     title,
-    segmented([{ value: 'page', label: 'Page' }, { value: 'settings', label: 'Settings' }], tab, (v) => { tab = v; draw(); }),
+    segmented<Tab>([{ value: 'page', label: 'Page' }, { value: 'insights', label: 'Insights' }, { value: 'settings', label: 'Settings' }], tab, (v) => { tab = v; draw(); }),
     content),
   stage,
   h('button', { class: 'preview-fab', type: 'button', onclick: openCanvas }, svg('eye', 18), 'Design your page')));
 
+let drawing = 0;
 async function draw() {
+  const run = ++drawing;
   title.textContent = TITLES[tab];
   const y = scrollY;
-  content.replaceChildren(tab === 'page' ? pageTab() : settingsTab());
+  if (tab === 'insights' && content.dataset.tab !== 'insights') content.replaceChildren(h('p', { class: 'loading' }, 'Loading…'));
+  const view = tab === 'page' ? pageTab() : tab === 'insights' ? await insightsTab(draw) : settingsTab();
+  if (run !== drawing) return; // a newer draw started while stats were loading
+  content.replaceChildren(view);
+  content.dataset.tab = tab;
   scrollTo(0, y);
 }
 let previewTimer: ReturnType<typeof setTimeout>;

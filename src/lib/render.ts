@@ -65,7 +65,7 @@ ${photo.startsWith('https:') ? `<meta property="og:image" content="${esc(photo)}
 </main>
 ${MEDIA_SCRIPT}
 ${preview ? PREVIEW_SCRIPT
-  : `${SCHEDULE_SCRIPT}${SHARE_SCRIPT}\n<script type="application/json" id="${CONFIG_ID}">${JSON.stringify(cfg).replace(/</g, '\\u003c')}</script>`}
+  : `${SCHEDULE_SCRIPT}${SHARE_SCRIPT}${cfg.stats ? statsScript(cfg.stats) : ''}\n<script type="application/json" id="${CONFIG_ID}">${JSON.stringify(cfg).replace(/</g, '\\u003c')}</script>`}
 </body></html>`;
 }
 
@@ -230,4 +230,25 @@ document.querySelector('.share').addEventListener('click', async () => {
     document.body.append(t); setTimeout(() => t.remove(), 1800);
   } catch {}
 });
+</script>`;
+
+/** Only when the creator connected their own stats worker: one anonymous ping per visit and per tap, no cookies.
+ * Links stay direct. The creator's own browser (it opened the editor) is skipped. `?src=story` on the link labels the source. */
+const statsScript = (endpoint: string) => `<script>
+(() => {
+  try { if (localStorage.getItem('yourlinki-owner')) return; } catch {}
+  const url = ${JSON.stringify(endpoint + '/hit').replace(/</g, '\\u003c')};
+  const s = new URLSearchParams(location.search).get('src') || '';
+  const r = document.referrer;
+  const send = (l) => { try { navigator.sendBeacon(url, JSON.stringify({ l, r, s })); } catch {} };
+  send();
+  document.addEventListener('click', (event) => {
+    const el = event.target.closest('a[href], [data-youtube]');
+    if (!el) return;
+    const social = el.dataset.socialId;
+    const block = el.closest('[data-block-id]');
+    const id = social ? 'social:' + social : el.dataset.youtube ? 'play:' + (block ? block.dataset.blockId : '') : block && block.dataset.blockId;
+    if (id) send(id);
+  }, true);
+})();
 </script>`;

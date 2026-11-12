@@ -1,0 +1,16 @@
+// The optional stats worker. Deploy it to your own Cloudflare account (see the README, "Visitor stats").
+{
+  "name": "yourlinki-stats",
+  "main": "worker.ts",
+  "workers_dev": true,
+  "preview_urls": false,
+  "compatibility_date": "2026-10-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "yourlinki",
+      // Replace with the id printed by `npx wrangler d1 create yourlinki`.
+      "database_id": "2907a669-b3bc-4b77-834d-913ea19e7091"
+    }
+  ]
+}
