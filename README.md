@@ -29,9 +29,9 @@ Good to know:
 - If your computer saves the file as `index (1).html`, rename it to `index.html` before uploading. Otherwise GitHub adds a second file and your page doesn't change.
 - **Settings → Export** saves a backup of everything, photos included.
 
-## Visitor stats (optional, free)
+## One-press Publish and visitor stats (optional, free)
 
-See how many people visit, what they tap, and where they come from (Instagram, TikTok, …) in the editor's **Insights** tab. Stats run on a tiny worker in your own free Cloudflare account. Your page still lives on GitHub, and its links stay direct.
+Skip the download and upload: with a tiny worker in your own free Cloudflare account, **Publish** puts your page online by itself, and the **Insights** tab shows how many people visit, what they tap, and where they come from (Instagram, TikTok, …). Your page still lives on GitHub, and its links stay direct.
 
 You need [Node.js](https://nodejs.org) and a free [Cloudflare](https://dash.cloudflare.com/sign-up) account. On your computer, in a copy of your project:
 
@@ -39,11 +39,12 @@ You need [Node.js](https://nodejs.org) and a free [Cloudflare](https://dash.clou
 npx wrangler login
 npx wrangler d1 create yourlinki                 # paste the database_id it prints into stats/wrangler.jsonc
 npx wrangler d1 execute yourlinki --remote --file stats/schema.sql
+# in stats/wrangler.jsonc, set GITHUB_REPO to your copy, e.g. "yourname/links"
 cd stats && npx wrangler deploy                  # prints your address: https://yourlinki-stats.<you>.workers.dev
-npx wrangler secret put STATS_PASSWORD           # choose the password for Insights
+npx wrangler secret put STATS_PASSWORD           # choose your editor password
 ```
 
-Then open the editor → **Insights**, enter the address and password, press **Connect**, and **Publish** once.
+Then open the editor → **Insights**, enter the address and password, and press **Sign In**. The first time you press **Publish**, the editor asks for a GitHub key that can only change your copy (it walks you through it, about a minute). After that, Publish is one press.
 
 - No cookies. A visitor is an anonymous code that changes every day. Bots, link scanners and your own browser (the one you open the editor in) are not counted.
 - Add `?src=story` to your link (for example in a story) to see that source on its own.
