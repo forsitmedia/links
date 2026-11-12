@@ -1,15 +1,9 @@
 /** Insights: visitors and taps, read from the creator's own stats worker (stats/ in the repository). */
-import { state, changed } from './state';
+import { state } from './state';
+import { api, signInForm, signOut, signedIn, workerUrl } from './account';
 import { platform } from '../../lib/platforms';
 import { socialKey } from '../../lib/social-order';
-import { h, group, navRow, inputRow, segmented, hostname, toast } from './ui';
-
-const KEY = 'yourlinki-stats-password';
-const read = (k: string) => { try { return localStorage.getItem(k) ?? ''; } catch { return ''; } };
-const write = (k: string, v: string) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} };
-
-/** The creator's browser: the published page on this origin doesn't count its visits. */
-write('yourlinki-owner', '1');
+import { h, group, navRow, segmented, hostname } from './ui';
 
 let days = 30;
 
@@ -32,37 +26,15 @@ function itemName(id: string): string {
   return linkName(id) ?? blockName(id); // clicks recorded by the older Cloudflare version used the bare link id
 }
 
-function connectForm(redraw: () => void, error = ''): HTMLElement {
-  let endpoint = state.cfg.stats ?? '';
-  let password = read(KEY);
-  return h('div', {},
-    group({ header: 'Connect your stats', footer: 'Stats are optional. They go to your own free Cloudflare Worker (the stats folder in the repository, see the README). The password stays in this browser.' + (error ? ` ${error}` : '') },
-      inputRow('Address', endpoint, (v) => { endpoint = v.trim(); }, { placeholder: 'https://yourlinki-stats.….workers.dev', type: 'url' }),
-      inputRow('Password', password, (v) => { password = v; }, { type: 'password' }),
-      navRow({ title: 'Connect', chevron: false, onClick: async () => {
-        const url = endpoint.replace(/\/+$/, '');
-        if (!/^https:\/\//.test(url)) return toast('The address starts with https://');
-        try {
-          const res = await fetch(url + '/stats?days=1', { headers: { authorization: 'Bearer ' + password } });
-          if (res.status === 401) return toast('Wrong password');
-          if (!res.ok) throw new Error();
-        } catch { return toast('Could not reach that address'); }
-        write(KEY, password);
-        if (state.cfg.stats !== url) { state.cfg.stats = url; changed(); toast('Connected. Publish once so your page starts counting.'); }
-        redraw();
-      } })));
-}
-
 export async function insightsTab(redraw: () => void): Promise<HTMLElement> {
-  const endpoint = state.cfg.stats;
-  const password = read(KEY);
-  if (!endpoint || !password) return connectForm(redraw);
+  if (!signedIn()) return signInForm(redraw, { header: 'Sign in to see your stats' });
+  const endpoint = workerUrl();
 
   const picker = segmented([{ value: '1', label: 'Today' }, { value: '7', label: '7 Days' }, { value: '30', label: '30 Days' }, { value: '90', label: '90 Days' }], String(days), (v) => { days = +v; redraw(); });
   let s: any;
   try {
-    const res = await fetch(`${endpoint}/stats?days=${days}`, { headers: { authorization: 'Bearer ' + password } });
-    if (res.status === 401) { write(KEY, ''); return connectForm(redraw, 'The saved password no longer works.'); }
+    const res = await api(`/stats?days=${days}`);
+    if (res.status === 401) return signInForm(redraw, { header: 'Sign in again', footer: 'The saved password no longer works.' });
     if (!res.ok) throw new Error();
     s = await res.json();
   } catch {
@@ -94,10 +66,6 @@ export async function insightsTab(redraw: () => void): Promise<HTMLElement> {
     group({ header: 'Where Visitors Come From', footer: 'Tip: use yourlink/?src=story in a story or a post to see it here as its own source.' }, ...rows(s.bySource)),
     group({ header: 'Countries' }, ...rows(s.byCountry, country)),
     group({ header: 'Devices' }, ...rows(s.byDevice, (k) => k[0].toUpperCase() + k.slice(1))),
-    group({ footer: 'Disconnecting forgets the password in this browser. Your page keeps counting until you remove the address and publish.' },
-      navRow({ title: 'Disconnect This Browser', chevron: false, onClick: () => { write(KEY, ''); redraw(); } }),
-      navRow({ title: 'Stop Counting on My Page', chevron: false, onClick: () => {
-        if (!confirm('Remove stats from your page? Publish afterwards to apply it.')) return;
-        delete state.cfg.stats; write(KEY, ''); changed(); redraw();
-      } })));
+    group({ footer: 'Signing out forgets the password in this browser. You need it again to publish or see stats here.' },
+      navRow({ title: 'Sign Out of This Browser', chevron: false, onClick: () => { signOut(); redraw(); } })));
 }

@@ -4,11 +4,13 @@
   "main": "worker.ts",
   "workers_dev": true,
   "preview_urls": false,
+  // The GitHub repository whose index.html the editor's Publish button replaces.
+  "vars": { "GITHUB_REPO": "forsitmedia/links" },
   "compatibility_date": "2026-10-01",
   // Spending guards (see the top of worker.ts): per-device limits, free on every plan.
   "ratelimits": [
     { "name": "HITS", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } },
-    { "name": "LOGINS", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } }
+    { "name": "LOGINS", "namespace_id": "1002", "simple": { "limit": 30, "period": 60 } }
   ],
   "d1_databases": [
     {

@@ -447,3 +447,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-
 .chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; padding: 16px; }
 .chart div { flex: 1; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--blue); }
 .chart .empty { margin: auto; color: var(--sec); font-size: 15px; }
+
+/* One-press publishing */
+.publish-status { display: grid; justify-items: center; gap: 8px; padding: 28px 12px 8px; text-align: center; }
+.publish-status p { color: var(--sec); font-size: 15px; }
+.publish-status b { font-size: 20px; }
+.publish-status.done svg { color: var(--green); }
+.spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--fill); border-top-color: var(--blue); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.publish form { display: block; }

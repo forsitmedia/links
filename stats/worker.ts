@@ -1,18 +1,21 @@
-/** yourlinki stats: an optional Cloudflare Worker that counts page views and clicks in a D1 database.
+/** yourlinki worker (optional): one-click publishing from the editor, and visitor stats in a D1 database.
  *
- *   POST /hit    {"l"?: item id, "r"?: referrer, "s"?: source}   sent by the published page (sendBeacon)
- *   GET  /stats?days=30                                           read by the editor, needs `Authorization: Bearer <STATS_PASSWORD>`
+ *   POST /hit      {"l"?: item id, "r"?: referrer, "s"?: source}   sent by the published page (sendBeacon)
+ *   GET  /stats?days=30                                             editor Insights
+ *   POST /publish  the page HTML                                    commits it as index.html to GITHUB_REPO
+ *   POST /github   {"token": "github_pat_…"}                         stores the GitHub key used by /publish
+ * Everything but /hit needs `Authorization: Bearer <STATS_PASSWORD>`.
  *
  * No cookies. A visitor is a hash of a random daily salt, IP and browser, so it can't be traced across days or back to an IP. */
 
 interface Limiter { limit(o: { key: string }): Promise<{ success: boolean }> }
-interface Env { DB: D1Database; STATS_PASSWORD?: string; HITS?: Limiter; LOGINS?: Limiter }
+interface Env { DB: D1Database; STATS_PASSWORD?: string; GITHUB_REPO?: string; HITS?: Limiter; LOGINS?: Limiter }
 
 /* Spending guards. On Cloudflare's free plan nothing is ever billed (limits just stop requests), and these keep
    usage far below even the free limits, whatever anyone sends:
    - DAILY_CAP: at most this many visits + taps are recorded per day (UTC). Past it, nothing touches the database.
    - HITS (wrangler.jsonc): one device can send at most 30 pings a minute.
-   - LOGINS (wrangler.jsonc): 5 password tries a minute per device, so the password can't be guessed. */
+   - LOGINS (wrangler.jsonc): 30 signed-in requests a minute per device, so the password can't be guessed. */
 const DAILY_CAP = 10_000;
 
 const enc = new TextEncoder();
@@ -96,6 +99,51 @@ async function stats(url: URL, env: Env) {
   return { days, views: views.n, visitors: views.v, clicks: clicks.n, clickers: clicks.v, perItem, byCountry, byDevice, bySource, dailyViews, dailyClicks };
 }
 
+/* Publishing: the page is committed to the creator's GitHub repository, which GitHub Pages serves.
+   The key is a fine-grained GitHub token limited to that one repository (Contents: read and write).
+   It is stored in this worker's database and never sent back out. */
+const MAX_PAGE = 20_000_000;
+
+async function github(env: Env, token: string, path: string, init: RequestInit = {}) {
+  const res = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}${path}`, { ...init, headers: {
+    authorization: 'Bearer ' + token, accept: 'application/vnd.github+json', 'user-agent': 'yourlinki', 'x-github-api-version': '2022-11-28',
+    ...(init.body ? { 'content-type': 'application/json' } : {}) } });
+  if (!res.ok) throw Object.assign(new Error(`GitHub ${res.status} on ${path}`), { status: res.status });
+  return res.json() as Promise<any>;
+}
+
+async function publish(request: Request, env: Env) {
+  if (!env.GITHUB_REPO) return json({ error: 'GITHUB_REPO is not set in wrangler.jsonc' }, 500);
+  const row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'github_token'").first<{ value: string }>();
+  if (!row) return json({ error: 'github', repo: env.GITHUB_REPO }, 409);
+  const html = await request.text();
+  if (html.length > MAX_PAGE || !/^<!doctype html>/i.test(html) || !html.includes('id="yourlinki-config"')) return json({ error: 'That is not a yourlinki page' }, 400);
+  try {
+    // One commit that replaces index.html, through the Git data API (handles large pages, unlike the contents API).
+    const ref = await github(env, row.value, '/git/ref/heads/main');
+    const parent = await github(env, row.value, `/git/commits/${ref.object.sha}`);
+    const blob = await github(env, row.value, '/git/blobs', { method: 'POST', body: JSON.stringify({ content: html, encoding: 'utf-8' }) });
+    const tree = await github(env, row.value, '/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: parent.tree.sha, tree: [{ path: 'index.html', mode: '100644', type: 'blob', sha: blob.sha }] }) });
+    const commit = await github(env, row.value, '/git/commits', { method: 'POST', body: JSON.stringify({ message: 'Update my page', tree: tree.sha, parents: [ref.object.sha] }) });
+    await github(env, row.value, '/git/refs/heads/main', { method: 'PATCH', body: JSON.stringify({ sha: commit.sha }) });
+    return json({ ok: true, commit: commit.sha });
+  } catch (e: any) {
+    console.error('publish failed', e);
+    if (e.status === 401 || e.status === 403 || e.status === 404) return json({ error: 'github', repo: env.GITHUB_REPO, expired: true }, 409);
+    return json({ error: 'GitHub did not accept the update. Try again in a minute.' }, 502);
+  }
+}
+
+async function connectGithub(request: Request, env: Env) {
+  if (!env.GITHUB_REPO) return json({ error: 'GITHUB_REPO is not set in wrangler.jsonc' }, 500);
+  let token = '';
+  try { token = String((await request.json() as any).token ?? '').trim(); } catch {}
+  if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(token)) return json({ error: 'That does not look like a GitHub key. It starts with github_pat_' }, 400);
+  try { await github(env, token, '/git/ref/heads/main'); } catch { return json({ error: `That key cannot open ${env.GITHUB_REPO}. Check that you picked this repository.` }, 400); }
+  await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('github_token', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(token).run();
+  return json({ ok: true });
+}
+
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { ...CORS, 'content-type': 'application/json', 'cache-control': 'no-store' } });
@@ -113,12 +161,15 @@ export default {
       ctx.waitUntil(hit(request, env, body).catch((e) => console.error('tracking failed', e)));
       return new Response(null, { status: 204, headers: CORS });
     }
-    if (url.pathname === '/stats' && request.method === 'GET') {
+    const route = `${request.method} ${url.pathname}`;
+    if (['GET /stats', 'POST /publish', 'POST /github'].includes(route)) {
       if (env.LOGINS && !(await env.LOGINS.limit({ key: request.headers.get('cf-connecting-ip') ?? '' })).success) return json({ error: 'Too many tries, wait a minute' }, 429);
       const pw = env.STATS_PASSWORD;
       const given = (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
       if (!pw || !eq(given, pw)) return json({ error: 'Wrong password' }, 401);
-      return json(await stats(url, env));
+      if (route === 'GET /stats') return json(await stats(url, env));
+      if (route === 'POST /publish') return publish(request, env);
+      return connectGithub(request, env);
     }
     return json({ ok: true, name: 'yourlinki stats' });
   },
