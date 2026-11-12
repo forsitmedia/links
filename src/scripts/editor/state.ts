@@ -35,6 +35,9 @@ function draftStore<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) =>
 const published = await loadPublished();
 const draft = await draftStore<string>('readonly', (s) => s.get(DRAFT_KEY)).then((d) => { try { return d ? normalize(JSON.parse(d)) : null; } catch { return null; } });
 
+// A draft started before the worker was connected still publishes and signs in through it.
+if (draft && !draft.stats && published?.stats) draft.stats = published.stats;
+
 export const state = {
   cfg: draft ?? published ?? normalize({}),
   /** The config as last published (or downloaded for publishing). */
