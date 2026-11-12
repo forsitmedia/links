@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# logs
+npm-debug.log*
+
+# macOS-specific files
+.DS_Store
+
+# editor settings
+.idea/
+
+# old versions kept locally
+.backup/
+
+# browser test output
+.playwright-mcp/

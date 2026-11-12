@@ -1,0 +1,34 @@
+{
+  "onboarded": false,
+  "profile": {
+    "name": "Your Name",
+    "handle": "yourname",
+    "bio": "A line or two about what you do. Replace this in the editor.",
+    "photo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgMTAwMCI+CiAgPGRlZnM+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9ImEiIGN4PSIyNSUiIGN5PSIyMCUiIHI9IjcwJSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjM2E3YmQ1Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjM2E3YmQ1IiBzdG9wLW9wYWNpdHk9IjAiLz48L3JhZGlhbEdyYWRpZW50PgogICAgPHJhZGlhbEdyYWRpZW50IGlkPSJiIiBjeD0iODAlIiBjeT0iMzUlIiByPSI2MCUiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y2YTU1YyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2Y2YTU1YyIgc3RvcC1vcGFjaXR5PSIwIi8+PC9yYWRpYWxHcmFkaWVudD4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iYyIgY3g9IjQ1JSIgY3k9Ijg1JSIgcj0iNzAlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM3YjRmZDYiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM3YjRmZDYiIHN0b3Atb3BhY2l0eT0iMCIvPjwvcmFkaWFsR3JhZGllbnQ+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9ImQiIGN4PSI3MCUiIGN5PSI3NSUiIHI9IjQwJSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMmZiMzlhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMmZiMzlhIiBzdG9wLW9wYWNpdHk9IjAiLz48L3JhZGlhbEdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjEwMDAiIGZpbGw9IiMxNDIxM2QiLz4KICA8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjEwMDAiIGZpbGw9InVybCgjYSkiLz48cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjEwMDAiIGZpbGw9InVybCgjYikiLz4KICA8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjEwMDAiIGZpbGw9InVybCgjYykiLz48cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjEwMDAiIGZpbGw9InVybCgjZCkiLz4KICA8Y2lyY2xlIGN4PSI0MDAiIGN5PSI0MzAiIHI9IjE1MCIgZmlsbD0iI2ZmZmZmZiIgZmlsbC1vcGFjaXR5PSIuMTIiLz4KICA8Y2lyY2xlIGN4PSI0MDAiIGN5PSIzODAiIHI9IjcwIiBmaWxsPSIjZmZmZmZmIiBmaWxsLW9wYWNpdHk9Ii4yNSIvPgogIDxwYXRoIGQ9Ik0yNTAgNjQwYzIwLTkwIDgwLTE0MCAxNTAtMTQwczEzMCA1MCAxNTAgMTQwIiBmaWxsPSIjZmZmZmZmIiBmaWxsLW9wYWNpdHk9Ii4yNSIvPgo8L3N2Zz4K"
+  },
+  "highlights": [
+    { "value": "12", "label": "Projects" },
+    { "value": "2K", "label": "Followers" },
+    { "value": "2026", "label": "Since" }
+  ],
+  "links": [
+    { "id": "website", "title": "Visit my website", "url": "https://example.com", "featured": true },
+    { "id": "github", "title": "GitHub", "url": "https://github.com" },
+    { "id": "newsletter", "title": "Newsletter", "url": "https://example.com/newsletter" },
+    { "id": "work-1", "title": "Latest project", "url": "https://example.com/project", "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgNTAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNmZjlhOGIiLz48c3RvcCBvZmZzZXQ9Ii41NSIgc3RvcC1jb2xvcj0iI2ZmNmE4OCIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzdiNGZkNiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNTAwIiBmaWxsPSJ1cmwoI2cpIi8+PGNpcmNsZSBjeD0iMjkwIiBjeT0iMTUwIiByPSI3MCIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMyIvPjwvc3ZnPgo=" },
+    { "id": "work-2", "title": "Photo series", "url": "https://example.com/photos", "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgNTAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMSIgeDI9IjEiIHkyPSIwIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxMzRlNWUiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM3MWIyODAiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjUwMCIgZmlsbD0idXJsKCNnKSIvPjxwYXRoIGQ9Ik0wIDM4MGwxMjAtMTEwIDkwIDcwIDgwLTYwIDExMCAxMDB2MTIwSDB6IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9Ii4yNSIvPjwvc3ZnPgo=" }
+  ],
+  "social": [
+    { "platform": "instagram", "url": "https://instagram.com" },
+    { "platform": "tiktok", "url": "https://tiktok.com" },
+    { "platform": "youtube", "url": "https://youtube.com" },
+    { "platform": "email", "url": "mailto:you@example.com" }
+  ],
+  "look": {
+    "mode": "dark",
+    "background": "photo",
+    "color": "#1c1c1e",
+    "accent": "",
+    "font": "system"
+  }
+}

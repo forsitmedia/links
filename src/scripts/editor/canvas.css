@@ -1,0 +1,22 @@
+/* Editor controls are injected only into the authenticated preview iframe. */
+html.canvas-editing [data-block-id] { cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+html.canvas-editing [data-block-id] :is(a, img) { -webkit-user-drag: none; -webkit-touch-callout: none; }
+html.canvas-editing [data-profile-part] { cursor: pointer; }
+html.canvas-editing [data-social-id] { touch-action: none; cursor: grab; -webkit-user-drag: none; }
+html.canvas-editing [data-block-id]:hover { outline: 1px dashed #007aff80; outline-offset: 3px; }
+html.canvas-editing [data-block-id].canvas-selected { outline: 2px solid #007aff; outline-offset: 4px; }
+html.canvas-editing .canvas-part-selected { outline: 2px solid #007aff; outline-offset: 3px; }
+.canvas-ui { position: absolute; z-index: 100; pointer-events: none; box-sizing: border-box; }
+.canvas-ui button { pointer-events: auto; display: grid; place-items: center; width: 34px; height: 34px; background: #007aff; color: #fff; border-radius: 9px; border: 2px solid #fff; box-shadow: 0 2px 8px #0002; cursor: pointer; }
+.canvas-ui .canvas-drag { position: absolute; top: 0; left: 0; transform: translate(-4px, -25%); touch-action: none; cursor: grab; }
+.canvas-ui .canvas-edit { position: absolute; top: 0; right: 0; transform: translate(4px, -25%); font: 600 11px system-ui; width: 42px; }
+.canvas-ui .canvas-resize { position: absolute; bottom: 0; right: 0; transform: translate(6px, 6px); touch-action: none; cursor: nwse-resize; border-radius: 50%; width: 28px; height: 28px; }
+.canvas-ui button:focus-visible { outline: 3px solid #ffcc00; outline-offset: 3px; }
+.canvas-ui button[hidden], .canvas-ui.is-social button { display: none; }
+.canvas-social-ghost { position: fixed !important; z-index: 150; display: grid; place-items: center; pointer-events: none; opacity: .85; border-radius: 50%; box-shadow: 0 6px 18px #0003; }
+.canvas-social-ghost img, .canvas-social-ghost svg { width: 22px; height: 22px; }
+html.canvas-editing .social:has(.canvas-part-selected):hover { outline: none; }
+.canvas-drop { position: absolute; height: 4px; background: #007aff; border-radius: 3px; z-index: 150; pointer-events: none; box-shadow: 0 0 0 2px #fff; }
+.canvas-ghost { position: fixed !important; z-index: 140; pointer-events: none !important; opacity: .85; margin: 0 !important; box-shadow: 0 12px 30px #0003; max-height: 260px; overflow: hidden; border-radius: 12px; }
+.canvas-source { opacity: .25; }
+@media (pointer: coarse) { .canvas-ui button { width: 40px; height: 40px; } .canvas-ui .canvas-resize { width: 34px; height: 34px; } }
