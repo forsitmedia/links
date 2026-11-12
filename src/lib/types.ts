@@ -40,7 +40,8 @@ export type PageBlock = {
 export type Look = {
   spacing?: number;
   template: Template;
-  mode: 'dark' | 'light';
+  /** 'auto' follows each visitor's phone setting. */
+  mode: 'dark' | 'light' | 'auto';
   background: 'photo' | 'color';
   color: string;
   accent: string; // '' = automatic (white on dark, black on light)
@@ -73,6 +74,7 @@ export function normalize(raw: any = {}): Config {
     .map((l) => ({ ...l, ...('buttonShape' in l ? { buttonShape: normalizeButtonShape(l.buttonShape) } : {}), ...(l.imageFrame ? { imageFrame: normalizeImageFrame(l.imageFrame) } : {}), tile: normalizeTileStyle(l.tile) }));
   const look = { ...DEFAULT_LOOK, ...c.look };
   if (!TEMPLATE_IDS.includes(look.template)) look.template = 'photo';
+  if (!['dark', 'light', 'auto'].includes(look.mode)) look.mode = 'dark';
   if ('spacing' in look) look.spacing = bounded(look.spacing, 8, 36);
   return {
     onboarded: !!c.onboarded,

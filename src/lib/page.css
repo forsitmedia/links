@@ -124,7 +124,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
 
 .social { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
 .social a { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; color: var(--text); }
-.social img { width: 22px; height: 22px; }
+.social img { width: 22px; height: 22px; filter: var(--glyph); }
 
 .rows { display: grid; gap: 10px; }
 .row-link {

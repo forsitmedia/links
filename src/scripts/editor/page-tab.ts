@@ -1,7 +1,7 @@
 /** One ordered content list, with layout presets and the existing appearance controls. */
 import { platform } from '../../lib/platforms';
 import { editPageBlock, addItemMenu, addMediaItem } from './block-editor';
-import { FONTS } from '../../lib/look';
+import { FONTS, modeFor } from '../../lib/look';
 import { TEMPLATES } from '../../lib/templates';
 import { youtubeVideo, youtubeCover, postSource } from '../../lib/media';
 import { isVisible, safeImg, type Look, type PageBlock } from '../../lib/types';
@@ -108,10 +108,16 @@ export function pageTab(): HTMLElement {
     const line = (label: string, control: Node) => h('div', { class: 'row stacked' }, h('span', { class: 'lbl' }, label), control);
     const fontControl = segmented((Object.keys(FONTS) as Look['font'][]).map((f) => ({ value: f, label: f[0].toUpperCase() + f.slice(1), style: `font-family:${FONTS[f]}` })), look.font, (v) => set('font', v));
     fontControl.classList.add('font-options');
-    return group({ header: 'Make it yours' },
-      line('Mode', segmented([{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }], look.mode, (v) => set('mode', v))),
+    return group({ header: 'Make it yours', footer: look.mode === 'auto'
+        ? 'Automatic shows the light or dark version to match each visitor\'s phone. Colors are adjusted so text always stays readable.'
+        : 'Colors are adjusted so text always stays readable. Automatic follows each visitor\'s phone instead.' },
+      line('Mode', segmented([{ value: 'auto', label: 'Automatic' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }], look.mode, (v) => set('mode', v, true))),
       line('Background', segmented([{ value: 'photo', label: 'From Image' }, { value: 'color', label: 'Color' }], look.background, (v) => set('background', v, true))),
-      look.background === 'color' && line('Background Color', swatches(['#1c1c1e', '#000000', '#f2f2f7', '#ffffff', '#f3efe7', '#0a84ff', '#ff375f', '#30d158', '#bf5af2'], look.color, (v) => set('color', v))),
+      look.background === 'color' && line('Background Color', swatches(['#1c1c1e', '#000000', '#f2f2f7', '#ffffff', '#f3efe7', '#0a84ff', '#ff375f', '#30d158', '#bf5af2'], look.color, (v) => {
+        // A fixed mode follows the chosen color, so the page shows that color with readable text.
+        if (look.mode !== 'auto') look.mode = modeFor(v);
+        set('color', v, true); // redraw: the Mode control may have changed
+      }, false)),
       line('Button Color', swatches(['', '#ffffff', '#000000', '#0a84ff', '#ff375f', '#ff9f0a', '#30d158', '#bf5af2'], look.accent, (v) => set('accent', v))),
       line('Font', fontControl));
   }

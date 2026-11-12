@@ -1,4 +1,4 @@
-import { lookVars, FONTS } from './look';
+import { lookVars, lookColors, themeColorMeta, FONTS } from './look';
 import { imageFrameStyle } from './image-frame';
 import { normalizeButtonShape } from './button-shape';
 import { tileAttributes, tileTextStyle } from './tile-style';
@@ -50,13 +50,13 @@ export function renderPage(cfg: Config, { now = Date.now(), preview = false }: O
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="${cfg.look.mode === 'dark' ? '#000000' : '#f2f2f7'}">
+${themeColorMeta(cfg.look)}
 <title>${esc(cfg.profile.name)}</title>
 <meta name="description" content="${esc(cfg.profile.bio)}">
 <meta property="og:title" content="${esc(cfg.profile.name)}"><meta property="og:description" content="${esc(cfg.profile.bio)}">
 ${photo.startsWith('https:') ? `<meta property="og:image" content="${esc(photo)}">` : ''}
 <link rel="icon" href="favicon.ico" sizes="32x32"><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="apple-touch-icon.png">
-<style>${css}</style>
+<style>${css}${lookColors(cfg.look)}</style>
 </head><body class="template-${cfg.look.template}" style="${esc(lookVars(cfg.look))}">
 <div class="backdrop">${photoBg ? `<img src="${esc(backgroundImage)}" alt="">` : ''}</div>
 <main class="page">
@@ -124,10 +124,9 @@ function highlights(cfg: Config, data: string): string {
 function social(cfg: Config, data: string): string {
   const items = cfg.social.map((s, i) => ({ ...s, id: socialKey(s, i) })).filter((s) => safeUrl(s.url));
   if (!items.length) return '';
-  const color = cfg.look.mode === 'dark' ? 'ffffff' : '111111';
   return `<nav class="social" aria-label="Social profiles" ${data}>${items.map((s) => {
     const p = platform(s.platform);
-    const glyph = p?.slug ? `<img src="https://cdn.simpleicons.org/${p.slug}/${color}" alt="">` : icon(p?.icon ?? 'link', 22);
+    const glyph = p?.slug ? `<img src="https://cdn.simpleicons.org/${p.slug}/111111" alt="">` : icon(p?.icon ?? 'link', 22);
     return `<a class="glass" data-social-id="${esc(s.id)}" href="${esc(safeUrl(s.url))}" aria-label="${esc(p?.label ?? s.platform)}" rel="noopener">${glyph}</a>`;
   }).join('')}</nav>`;
 }
