@@ -1,20 +1,24 @@
 /** One ordered content list, with layout presets and the existing appearance controls. */
 import { platform } from '../../lib/platforms';
 import { editPageBlock, addItemMenu, addMediaItem } from './block-editor';
-import { FONTS, modeFor } from '../../lib/look';
+import { FONTS, FONT_LABELS, modeFor } from '../../lib/look';
+import { plain } from '../../lib/render';
 import { TEMPLATES } from '../../lib/templates';
 import { youtubeVideo, youtubeCover, postSource } from '../../lib/media';
-import { isVisible, safeImg, type Look, type PageBlock } from '../../lib/types';
+import { isVisible, safeImg, MUSIC_STYLES, type Look, type PageBlock } from '../../lib/types';
+import { MUSIC_LABELS } from '../../lib/music';
+import { saveLayout, restoreLayout } from '../../lib/layout';
 import { state, changed } from './state';
 import { imageFrameStyle } from '../../lib/image-frame';
 import { sortable } from './reorder';
-import { h, group, actionRow, segmented, swatches, svg, toast, hostname } from './ui';
+import { h, group, actionRow, switchRow, segmented, swatches, svg, toast, hostname } from './ui';
+import { pageAnimationGroup } from './animation-controls';
 
 let reordering = false;
 
 export function pageTab(): HTMLElement {
   const { cfg } = state;
-  return h('div', {}, contentGroup(), templatesGroup(), appearanceGroup());
+  return h('div', {}, contentGroup(), templatesGroup(), appearanceGroup(), pageAnimationGroup());
 
   function move(from: number, to: number, focus = false) {
     if (to < 0 || to >= cfg.blocks.length || from === to) return;
@@ -67,6 +71,15 @@ export function pageTab(): HTMLElement {
     if (b.type === 'profile') return { title: 'Profile', subtitle: extra('Photo, name & username'), icon: 'person', image: safeImg(cfg.profile.photo), hidden };
     if (b.type === 'name') return { title: 'Name', subtitle: extra([cfg.profile.name, cfg.profile.handle && '@' + cfg.profile.handle].filter(Boolean).join(' · ')), icon: 'text', hidden };
     if (b.type === 'bio') return { title: 'Bio', subtitle: extra(cfg.profile.bio || 'Add a few words about you'), icon: 'text', hidden };
+    if (b.type === 'space') return { title: 'Empty space', subtitle: 'Only you see it while editing · tap to remove', icon: 'minus', hidden };
+    if (b.type === 'menu') return { title: b.title || 'Link menu', subtitle: extra((b.items ?? []).map((e) => e.title).filter(Boolean).join(' · ') || 'Tap to add links'), icon: 'menu', hidden };
+    if (b.type === 'file') return { title: b.title || b.fileName || 'PDF', subtitle: extra(b.file ? (b.file.startsWith('data:') ? `PDF · ${b.fileName ?? 'uploaded'}` : `PDF · ${b.file.replace(/^https:\/\//, '')}`) : 'Tap to add a PDF'), icon: 'doc', hidden };
+    if (b.type === 'voice') return { title: 'Voice message', subtitle: extra(b.audio ? `${b.title || 'Recording'}${b.duration ? ` · ${Math.floor(b.duration / 60)}:${String(Math.round(b.duration % 60)).padStart(2, '0')}` : ''}` : 'Tap to record'), icon: 'mic', hidden };
+    if (b.type === 'shape') return { title: 'Shape', subtitle: extra(`${b.deco?.shape ?? 'blob'} · ${b.deco?.color ?? ''}`), icon: 'star', hidden };
+    if (b.type === 'credentials') return { title: b.title || 'Credentials', subtitle: extra((b.entries ?? []).map((e) => e.title).filter(Boolean).join(' · ') || 'Add your degrees and awards'), icon: 'cap', hidden };
+    if (b.type === 'text') return { title: plain(b.title ?? '').trim().split('\n')[0].replace(/^\s*([-•]|\d+[.)])\s+/, '') || 'Text', subtitle: extra({ title: 'Title', subtitle: 'Subtitle', body: 'Text', small: 'Label' }[b.textStyle ?? 'body']), icon: 'text', hidden };
+    if (b.type === 'highlights' && b.part) { const x = cfg.highlights[Number(b.part)]; return { title: [x?.value, x?.label].filter(Boolean).join(' ') || 'Highlight', subtitle: extra('One highlight'), icon: 'star', hidden }; }
+    if (b.type === 'social' && b.part) { const s = cfg.social.find((s, i) => (s.id || `social:${i}`) === b.part); return { title: `${platform(s?.platform ?? '')?.label ?? 'Social'} icon`, subtitle: extra(s?.url.replace(/^(https?:\/\/|mailto:)/, '') ?? ''), icon: 'globe', hidden }; }
     if (b.type === 'highlights') return { title: 'Highlights', subtitle: extra(cfg.highlights.map((x) => [x.value, x.label].filter(Boolean).join(' ')).join(' · ') || 'Add your numbers'), icon: 'star', hidden };
     if (b.type === 'social') return { title: 'Social Icons', subtitle: extra(cfg.social.map((s) => platform(s.platform)?.label ?? s.platform).join(' · ') || 'Add your social profiles'), icon: 'globe', hidden };
     if (b.type === 'link') {
@@ -87,7 +100,22 @@ export function pageTab(): HTMLElement {
       h('div', { class: 'template-grid' }, TEMPLATES.map((t) =>
         h('button', { type: 'button', class: `template-option${cfg.look.template === t.id ? ' selected' : ''}`, 'aria-pressed': String(cfg.look.template === t.id), 'aria-label': `${t.name} template`, onclick: () => {
           if (cfg.look.template === t.id) return;
-          cfg.look = { ...t.look };
+          // Each template keeps its own arrangement: keep this one, then bring back the new template's (or start it clean).
+          const first = !cfg.layouts;
+          const layouts = cfg.layouts ??= {};
+          // Arrangements kept before typography was kept too (no v) were made automatically, except Photo's, where pages
+          // were built: drop the others (and don't keep the one on screen), so those designs get arranged neatly again.
+          const legacy = Object.values(layouts).some((l) => l && !l.v);
+          if (legacy) for (const k of Object.keys(layouts) as (keyof typeof layouts)[]) if (k !== 'photo') delete layouts[k];
+          const current = saveLayout(cfg);
+          if (!legacy || cfg.look.template === 'photo') layouts[cfg.look.template] = current;
+          if (first && cfg.look.template !== 'photo') layouts.photo ??= current; // pages made before this were arranged in Photo
+          const saved = layouts[t.id];
+          if (!saved) dispatchEvent(new CustomEvent('yourlinki-clean-layout', { detail: t.id })); // measured while the old template is still shown
+          const { music, disco, tools, reveal, revealDuration, revealRepeat } = cfg.look;
+          cfg.look = { ...t.look, ...(music ? { music } : {}), ...(disco ? { disco } : {}), ...(tools ? { tools } : {}),
+            ...(reveal ? { reveal } : {}), ...(revealDuration ? { revealDuration } : {}), ...(revealRepeat ? { revealRepeat } : {}) };
+          if (saved) restoreLayout(cfg, saved);
           changed(true);
         } },
           h('span', { class: `template-mini layout-${t.id}`, 'aria-hidden': 'true' },
@@ -99,15 +127,17 @@ export function pageTab(): HTMLElement {
             h('span', { class: 'mini-social' }, h('i'), h('i'), h('i'))),
           h('span', { class: 'template-name' }, t.name, cfg.look.template === t.id && h('span', { class: 'template-check', 'aria-hidden': 'true' }, '✓')),
           h('span', { class: 'template-description' }, t.description)))),
-      h('p', { class: 'group-f' }, 'Same content, a different feel. Your item order stays yours.'));
+      h('p', { class: 'group-f' }, 'Same content, a different feel. Each design keeps its own arrangement: switch back any time and yours is restored.'));
   }
 
   function appearanceGroup() {
     const look = cfg.look;
     const set = <K extends keyof Look>(k: K, v: Look[K], redraw = false) => { look[k] = v; changed(redraw); };
     const line = (label: string, control: Node) => h('div', { class: 'row stacked' }, h('span', { class: 'lbl' }, label), control);
-    const fontControl = segmented((Object.keys(FONTS) as Look['font'][]).map((f) => ({ value: f, label: f[0].toUpperCase() + f.slice(1), style: `font-family:${FONTS[f]}` })), look.font, (v) => set('font', v));
-    fontControl.classList.add('font-options');
+    const fontControl = h('div', { class: 'font-chips page-fonts' }, (Object.keys(FONTS) as Look['font'][]).map((f) => h('button', {
+      type: 'button', class: 'font-chip' + (look.font === f ? ' on' : ''), 'aria-pressed': String(look.font === f), style: `font-family:${FONTS[f]}`, title: `${FONT_LABELS[f]} font`,
+      onclick: () => set('font', f, true),
+    }, h('b', {}, 'Aa'), h('span', {}, FONT_LABELS[f]))));
     return group({ header: 'Make it yours', footer: look.mode === 'auto'
         ? 'Automatic shows the light or dark version to match each visitor\'s phone. Colors are adjusted so text always stays readable.'
         : 'Colors are adjusted so text always stays readable. Automatic follows each visitor\'s phone instead.' },
@@ -119,6 +149,10 @@ export function pageTab(): HTMLElement {
         set('color', v, true); // redraw: the Mode control may have changed
       }, false)),
       line('Button Color', swatches(['', '#ffffff', '#000000', '#0a84ff', '#ff375f', '#ff9f0a', '#30d158', '#bf5af2'], look.accent, (v) => set('accent', v))),
-      line('Font', fontControl));
+      line('Font', fontControl),
+      line('Music', h('select', { class: 'music-select', onchange: (e: Event) => set('music', ((e.target as HTMLSelectElement).value || undefined) as Look['music'], true) },
+        [['', 'Off'], ...MUSIC_STYLES.map((m) => [m, MUSIC_LABELS[m]])].map(([value, label]) => h('option', { value, selected: (look.music ?? '') === value }, label)))),
+      switchRow('Disco button 🪩', !!look.disco, (v) => set('disco', v || undefined, true)),
+      look.music && h('p', { class: 'row-note' }, 'A ♪ button appears next to Share. Music starts only when a visitor taps it, and it is made live in their browser, so there is no copyright. Try it in Preview.'));
   }
 }

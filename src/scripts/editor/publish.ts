@@ -1,8 +1,13 @@
 /** Publishing. Signed in to the creator's worker: one press puts the page online (the worker commits it to GitHub).
  * Without a worker: download index.html and upload it to the GitHub copy by hand. */
-import { pageFile, markPublished } from './state';
+import { pageFile, markPublished, state, changed } from './state';
+import { CONFIG_ID, PAGE_URL } from '../../lib/render';
+import { safeImg } from '../../lib/types';
+import { normalizeImageFrame } from '../../lib/image-frame';
 import { api, signedIn, signInForm } from './account';
 import { h, group, inputRow, navRow, sheet, svg, toast } from './ui';
+import { editorPageUrl, publishedPageUrl, rememberPage } from './page-url';
+import { prepareVoiceAudio } from '../../lib/audio-file';
 
 /** On `<owner>.github.io/<repo>/editor/`, the GitHub repository this editor was published from. */
 export function githubRepo(): { owner: string; repo: string } | null {
@@ -14,9 +19,9 @@ export function githubRepo(): { owner: string; repo: string } | null {
   return { owner, repo: at > 0 ? parts[at - 1] : host };
 }
 
-/** The public page: the folder that holds this editor. */
-export const pageUrl = () => new URL('../', location.href).href;
-const shortUrl = () => pageUrl().replace(/^https?:\/\//, '').replace(/\/$/, '');
+/** The connected publisher's page, or the folder holding the editor for a manual upload. */
+export const pageUrl = () => publishedPageUrl(state.cfg.stats);
+const shortUrl = (url = pageUrl()) => url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
 const step = (n: number, title: string, text: string, action?: Node) =>
   h('div', { class: 'publish-step' }, h('span', { class: 'publish-num' }, String(n)),
@@ -34,13 +39,39 @@ export function openPublish() {
   });
 }
 
+/** The picture link previews show (WhatsApp, iMessage…): the cover or photo, framed as on the page, as a 1200×630 JPEG.
+ * Only for embedded images; a photo with a web address is used as it is. */
+async function shareImage(config = state.cfg): Promise<string | null> {
+  const p = config.profile, cover = p.showCover !== false ? safeImg(p.cover) : '';
+  const src = cover || safeImg(p.photo);
+  if (!src.startsWith('data:')) return null;
+  try {
+    const img = new Image(); img.src = src; await img.decode();
+    const f = normalizeImageFrame(cover ? p.coverFrame : p.photoFrame), W = 1200, H = 630;
+    const canvas = Object.assign(document.createElement('canvas'), { width: W, height: H }), g = canvas.getContext('2d')!;
+    const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight) * f.zoom, w = img.naturalWidth * scale, ht = img.naturalHeight * scale;
+    g.fillStyle = '#111'; g.fillRect(0, 0, W, H);
+    g.drawImage(img, (W - w) * f.x / 100, (H - ht) * f.y / 100, w, ht);
+    return canvas.toDataURL('image/jpeg', .85).split(',')[1];
+  } catch { return null; }
+}
+
 async function publishNow(body: HTMLElement) {
   body.replaceChildren(h('div', { class: 'publish-status' }, h('span', { class: 'spinner' }), h('p', {}, 'Publishing…')));
-  const html = pageFile();
+  try { if (await prepareVoiceAudio(state.cfg)) changed(); }
+  catch { return failed(body, 'This voice recording could not be prepared for phones. Try publishing from the browser where you recorded it, or replace it with an MP3 or WAV file.'); }
+  const snapshot = JSON.stringify(state.cfg), config = JSON.parse(snapshot) as typeof state.cfg;
+  const html = pageFile(config), endpoint = config.stats ?? '';
   let res: Response, data: any = {};
   try {
-    res = await api('/publish', { method: 'POST', headers: { 'content-type': 'text/html' }, body: html });
+    // The worker fills in the page's address and publishes the preview picture next to the page.
+    res = await api('/publish', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ html, image: await shareImage(config) }) }, endpoint);
     data = await res.json().catch(() => ({}));
+    if (res.status === 400) { // a worker from before link previews: send the page alone, without the address placeholders
+      const plainHtml = html.replace(/<meta[^>]*__YOURLINKI_PAGE__[^>]*>/g, '').replace(/<meta property="og:image:(width|height)"[^>]*>|<meta name="twitter:card"[^>]*>/g, '');
+      res = await api('/publish', { method: 'POST', headers: { 'content-type': 'text/html' }, body: plainHtml }, endpoint);
+      data = await res.json().catch(() => ({}));
+    }
   } catch {
     return failed(body, 'Could not reach your yourlinki worker. Check your internet connection.');
   }
@@ -48,13 +79,48 @@ async function publishNow(body: HTMLElement) {
   if (res.status === 409 && data.error === 'github') return body.replaceChildren(connectGithub(body, data.repo, !!data.expired));
   if (!res.ok) return failed(body, data.error || 'Publishing failed. Try again in a minute.');
 
-  markPublished();
+  rememberPage(endpoint, data.url);
+  changed(true);
+  const url = publishedPageUrl(endpoint);
   const mb = new Blob([html]).size / 1_000_000;
-  body.replaceChildren(
-    h('div', { class: 'publish-status done' }, svg('check', 34), h('b', {}, 'Published'), h('p', {}, 'Your page updates in about a minute. Your link stays the same.')),
-    group({ header: 'Your link', footer: mb > 5 ? `Your page is ${mb.toFixed(1)} MB. Use fewer or smaller images so it loads quickly.` : 'Put this link in your Instagram bio.' },
-      navRow({ title: shortUrl(), chevron: false, trail: h('span', { class: 'val' }, 'Copy'), onClick: async () => { await navigator.clipboard.writeText(pageUrl()); toast('Link copied'); } }),
-      navRow({ title: 'Open My Page', onClick: () => open(pageUrl(), '_blank') })));
+  const links = () => group({ header: 'Your link', footer: mb > 5 ? `Your page is ${mb.toFixed(1)} MB. Use fewer or smaller images so it loads quickly.` : 'Put this link in your Instagram bio.' },
+      navRow({ title: shortUrl(url), chevron: false, trail: h('span', { class: 'val' }, 'Copy'), onClick: async () => { await navigator.clipboard.writeText(url); toast('Link copied'); } }),
+      navRow({ title: 'Open My Page', onClick: () => open(url, '_blank') }));
+
+  const check = async () => {
+    body.replaceChildren(h('div', { class: 'publish-status', role: 'status' }, h('span', { class: 'spinner' }),
+      h('b', {}, 'Updating your page…'), h('p', {}, 'Your changes are saved. Waiting for your page to go live, usually about a minute.')));
+    const until = Date.now() + 120_000;
+    do {
+      let ready = false;
+      try {
+        if (typeof data.version === 'string') {
+          const status = await api('/publish?version=' + encodeURIComponent(data.version), { signal: AbortSignal.timeout(15_000) }, endpoint);
+          if (status.status === 401) break;
+          ready = status.ok && (await status.json()).ready === true;
+        } else {
+          // Older workers can still be checked by reading the actual public page.
+          const live = new URL(url); live.searchParams.set('yourlinki-check', String(Date.now()));
+          const res = await fetch(live, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
+          const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+          const json = doc.getElementById(CONFIG_ID)?.textContent;
+          ready = res.ok && !!json && JSON.stringify(JSON.parse(json)) === snapshot;
+        }
+      } catch {} // transient errors keep the saved draft and allow another status check
+      if (ready) {
+        markPublished(snapshot);
+        body.replaceChildren(h('div', { class: 'publish-status done', role: 'status' }, svg('check', 34),
+          h('b', {}, 'Published'), h('p', {}, 'Your changes are live. Your link stays the same.')), links());
+        return;
+      }
+      if (!body.isConnected) return;
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    } while (Date.now() < until);
+    body.replaceChildren(h('div', { class: 'publish-status', role: 'status' }, h('b', {}, 'Update sent'),
+      h('p', {}, 'Your changes are saved, but your page is still updating. Check again in a moment.')),
+      group({}, navRow({ title: 'Check Again', onClick: check })), links());
+  };
+  await check();
 }
 
 function failed(body: HTMLElement, message: string) {
@@ -93,7 +159,8 @@ function connectGithub(body: HTMLElement, repo: string, expired: boolean): HTMLE
 /** The manual way, for pages without a worker. */
 export function openDownload() {
   const repo = githubRepo();
-  const html = pageFile();
+  const url = editorPageUrl();
+  const html = pageFile().split(PAGE_URL).join(url);
   const mb = new Blob([html]).size / 1_000_000;
 
   const download = () => {
@@ -115,6 +182,6 @@ export function openDownload() {
         repo ? h('a', { class: 'publish-btn secondary', href: `https://github.com/${repo.owner}/${repo.repo}/upload/main`, target: '_blank', rel: 'noopener' }, 'Open GitHub upload') : undefined),
       step(3, 'Wait about a minute', 'GitHub updates your page by itself. Refresh your link to see it.')),
     group({ footer: `If your computer saved the file as "index (1).html", rename it to index.html before uploading. Page size: ${mb.toFixed(1)} MB${mb > 5 ? '. That is large: use fewer or smaller images so your page loads quickly.' : '.'}` },
-      navRow({ title: 'Open My Page', value: shortUrl(), onClick: () => open(pageUrl(), '_blank') })),
+      navRow({ title: 'Open My Page', value: shortUrl(url), onClick: () => open(url, '_blank') })),
   ]);
 }

@@ -6,7 +6,37 @@ export const FONTS: Record<Look['font'], string> = {
   serif: 'ui-serif, "New York", Georgia, "Times New Roman", serif',
   mono: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
   display: 'Impact, "Arial Narrow", "Franklin Gothic Medium", sans-serif',
+  inter: '"Inter", system-ui, sans-serif',
+  poppins: '"Poppins", system-ui, sans-serif',
+  montserrat: '"Montserrat", system-ui, sans-serif',
+  grotesk: '"Space Grotesk", system-ui, sans-serif',
+  syne: '"Syne", system-ui, sans-serif',
+  playfair: '"Playfair Display", Georgia, serif',
+  dmserif: '"DM Serif Display", Georgia, serif',
+  lora: '"Lora", Georgia, serif',
+  bebas: '"Bebas Neue", Impact, sans-serif',
+  archivo: '"Archivo Black", Impact, sans-serif',
+  caveat: '"Caveat", "Comic Sans MS", cursive',
+  pacifico: '"Pacifico", "Brush Script MT", cursive',
 };
+/** Names shown in the editor. */
+export const FONT_LABELS: Record<Look['font'], string> = {
+  system: 'System', rounded: 'Rounded', serif: 'Serif', mono: 'Mono', display: 'Display', inter: 'Inter', poppins: 'Poppins', montserrat: 'Montserrat',
+  grotesk: 'Grotesk', syne: 'Syne', playfair: 'Playfair', dmserif: 'DM Serif', lora: 'Lora', bebas: 'Bebas', archivo: 'Archivo', caveat: 'Caveat', pacifico: 'Pacifico',
+};
+/** Fonts that come from Google Fonts (the others are already on every phone). */
+const WEB_FONTS: Partial<Record<Look['font'], string>> = {
+  inter: 'Inter:wght@300;400;500;600;700', poppins: 'Poppins:wght@300;400;500;600;700', montserrat: 'Montserrat:wght@300;400;500;600;700',
+  grotesk: 'Space+Grotesk:wght@300;400;500;600;700', syne: 'Syne:wght@400;600;700;800', playfair: 'Playfair+Display:ital,wght@0,400;0,600;0,700;1,400',
+  dmserif: 'DM+Serif+Display:ital@0;1', lora: 'Lora:ital,wght@0,400;0,600;0,700;1,400', bebas: 'Bebas+Neue', archivo: 'Archivo+Black',
+  caveat: 'Caveat:wght@400;600;700', pacifico: 'Pacifico',
+};
+/** One stylesheet link for the web fonts in use, or nothing when the page only uses built-in fonts. */
+export function fontLink(fonts: Iterable<string | undefined>): string {
+  const families = [...new Set([...fonts].map((f) => WEB_FONTS[f as Look['font']]).filter(Boolean))];
+  return families.length ? `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?${families.map((f) => 'family=' + f).join('&amp;')}&amp;display=swap">` : '';
+}
+export const ALL_FONTS_LINK = () => fontLink(Object.keys(WEB_FONTS));
 
 const isHex = (v: string) => /^#[0-9a-f]{6}$/i.test(v);
 
@@ -90,6 +120,7 @@ export function lookVars(look: Look): string {
   return css({
     '--page-gap': `${typeof look.spacing === 'number' ? Math.max(8, Math.min(36, look.spacing)) : ['studio', 'bold'].includes(look.template) ? 20 : look.template === 'gallery' ? 14 : 18}px`,
     '--font': FONTS[look.font] ?? FONTS.system,
+    ...(typeof look.margin === 'number' ? { '--page-margin': `${Math.max(0, Math.min(60, look.margin))}px` } : {}),
   });
 }
 

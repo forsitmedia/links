@@ -9,8 +9,10 @@ body {
 }
 button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
 
-/* The photo, heavily blurred, becomes the page background. */
-.backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: var(--bg); }
+/* The photo, heavily blurred, becomes the page background. It spans the whole page (not just the screen),
+   so it looks the same on every phone and at every scroll position: the photo's top colors run under the content. */
+body { position: relative; }
+.backdrop { position: absolute; inset: 0; min-height: 100vh; z-index: -1; overflow: hidden; background: var(--bg); }
 .backdrop img { width: 100%; height: 100%; object-fit: cover; filter: blur(60px) saturate(1.5); transform: scale(1.4); }
 .backdrop::after { content: ''; position: absolute; inset: 0; background: var(--overlay); }
 .backdrop:not(:has(img))::after { display: none; }
@@ -262,6 +264,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
 
 /* One responsive grid for both the published page and the visual editor. */
 .stack { grid-template-columns: repeat(12, minmax(0, 1fr)); row-gap: var(--page-gap, 18px); column-gap: 10px; }
+/* Rows keep their own height: when free items make the page taller, the extra room goes below, not between items. */
+.stack { align-content: start; }
 .stack > [data-block-id] { grid-column: span 12; min-width: 0; }
 .stack > .rows, .stack > .tiles { display: contents; }
 .stack > .rows > [data-block-id] { grid-column: span 12; min-width: 0; }
@@ -395,12 +399,350 @@ p, .bio { text-wrap: pretty; }
 
 /* Opening the page: items rise in, one after another. */
 @keyframes enter { from { opacity: 0; transform: translateY(14px); } }
-.intro .stack [data-block-id] { animation: enter .7s cubic-bezier(.16,1,.3,1) backwards; animation-delay: calc(var(--i, 0) * 55ms + 60ms); }
+.intro .stack [data-block-id]:not(.space):not(.scroll-reveal):not([data-reveal="none"]) { animation: enter .7s cubic-bezier(.16,1,.3,1) backwards; animation-delay: calc(var(--i, 0) * 55ms + 60ms); }
+.reveal-pending { opacity: 0 !important; }
+html.canvas-editing .reveal-pending { opacity: 1 !important; }
 .intro .share { animation: enter .7s cubic-bezier(.16,1,.3,1) .3s backwards; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, -10px) scale(.96); } }
 .toast { animation: toast-in .35s cubic-bezier(.2,.9,.3,1.2); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
 
 @media (prefers-reduced-motion: reduce) {
   .intro .stack [data-block-id], .intro .share, .toast { animation: none; }
+  .reveal-pending { opacity: 1 !important; }
   .primary, .row-link, .tile, .tile img, .post-card, .media-card, .social a, .share { transition: none; }
+}
+
+/* Button fill chosen per link (lib/button-shape.ts). */
+.page :is(.primary, .row-link)[data-button-style="solid"] { background: var(--accent); color: var(--on-accent); border: 1px solid transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.page :is(.primary, .row-link)[data-button-style="glass"] { background: var(--glass); color: var(--text); border: 1px solid var(--glass-border); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
+.page :is(.primary, .row-link)[data-button-style="outline"] { background: transparent; color: var(--text); border: 1.5px solid currentColor; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+.page .row-link[data-button-style="solid"] svg { opacity: .7; }
+
+/* "Space above" chosen per item: it moves by that much and everything below follows. */
+.stack [data-offset] { margin-bottom: var(--offset, 0); align-self: start; }
+/* Space above and free position both move the item; only Space above moves the items below it too. */
+.stack :is([data-offset], [data-free]) { translate: var(--dx, 0px) calc(var(--offset, 0px) + var(--dy, 0px)); }
+.stack [data-free] { position: relative; z-index: 3; }
+
+/* A tagline right under the name reads as its subtitle, not as a separate item. */
+.page .bio.tagline { align-self: start; }
+.stack > .profile-block:has(> .identity) + .bio.tagline, .stack > .name-block + .bio.tagline { margin-top: -10px; }
+.template-photo .profile-block:has(> .hero):not(.has-independent-cover):has(+ .bio.tagline) > .identity { margin-bottom: 4px; }
+
+/* Text size chosen per item: the text grows or shrinks, pictures keep their size. */
+/* Only what is inside the item is resized: its box, position and spacing stay where they are.
+   (--text-scale is set on the item; --fit shrinks text that doesn't fit a stretched item.) */
+.stack .fit, .stack :is(.row-link, .primary) > span { zoom: calc(var(--text-scale, 1) * var(--fit, 1)); }
+.stack [data-text-scale] :is(.identity, .tile > span, .video-copy, .post-copy, .image-card > figcaption, .row-link > svg, .stats > div, .social > a, .creds > *, .bio > :is(h2, p)) { zoom: var(--text-scale, 1); }
+
+/* Tile shape chosen per link, like phone widgets (lib/tile-style.ts). It wins over the template's shape. */
+.page .tile[data-shape] { --tile-ratio: 4 / 5; aspect-ratio: var(--tile-ratio); align-self: start; }
+.page .tile[data-shape="square"], .page .tile[data-shape="circle"] { --tile-ratio: 1; }
+.page .tile[data-shape="wide"] { --tile-ratio: 2.1; }
+.page .tile[data-shape="banner"] { aspect-ratio: auto; height: 84px; }
+.page .tile[data-shape="circle"], .page .tile[data-shape="circle"] .tile-media { border-radius: 50%; }
+/* Banners and circles read best with the title in the middle, unless another position was chosen. */
+.page .tile:is([data-shape="banner"], [data-shape="circle"]):not([data-text]) span { inset: 0; display: grid; place-items: center; text-align: center; padding: 10px 16px; background: rgba(0,0,0,var(--shade-flat, .3)); }
+/* With the title below, the picture keeps the shape and the title sits under it. */
+.page .tile[data-shape][data-text="below"] { aspect-ratio: auto; height: auto; }
+.page .tile[data-shape][data-text="below"] .tile-media { aspect-ratio: var(--tile-ratio); }
+.page .tile[data-shape="banner"][data-text="below"] .tile-media { aspect-ratio: auto; height: 84px; }
+.page .tile[data-shape="circle"][data-text="below"] { border-radius: 0; }
+
+/* Social icons in a column, to sit beside a tile like a widget. */
+.page .social[data-vertical] { flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: center; align-self: center; }
+
+/* Text items (any number of them): four styles, centered unless aligned otherwise. */
+.text-block { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; text-wrap: pretty; text-align: center; color: var(--text); }
+.text-title { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.022em; text-wrap: balance; }
+.text-subtitle { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -.01em; }
+.text-body { font-size: 16px; line-height: 1.5; opacity: .82; }
+.text-small { font-size: 12px; font-weight: 600; line-height: 1.4; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.text-block[data-align="left"] { text-align: left; }
+.text-block[data-align="right"] { text-align: right; }
+/* One piece of a group on its own (a single icon or number) sits centered in its space. */
+.social[data-part] { justify-content: center; align-self: center; }
+.stats[data-part] { justify-content: center; align-self: center; }
+
+/* Side margins chosen for the whole page (Look.margin); the full-width photo still reaches the edges. */
+body[data-margin] .stack { padding-inline: var(--page-margin, 20px); }
+body[data-margin]:not(.template-studio):not(.template-bold) .stack > .profile-block:is(:not([data-layout-span]), [data-layout-span="12"]) { margin-inline: calc(-1 * var(--page-margin, 20px)); }
+/* Extra side space for one item. */
+.stack [data-inset] { margin-inline: var(--inset, 0); }
+
+/* Marks inside text (bold, italic, underline, crossed out). */
+.text-block strong, .bio strong { font-weight: 700; }
+.text-title strong { font-weight: 800; }
+.text-block u, .bio u { text-decoration-thickness: .07em; text-underline-offset: .14em; }
+.text-block s, .bio s { text-decoration-thickness: .07em; opacity: .75; }
+
+/* Height chosen by stretching an item in the layout editor. Text starts at the top; icons and numbers stay centered. */
+.stack [data-height] { height: var(--h) !important; min-height: 0 !important; aspect-ratio: auto !important; align-self: start; box-sizing: border-box; }
+.stack .social[data-height] { align-content: center; align-items: center; }
+.stack .social[data-height]:not([data-vertical]) { justify-content: center; }
+.stack .social[data-vertical][data-height] { justify-content: space-evenly; }
+.stack .stats[data-height] { align-items: center; }
+.stack .tile[data-height][data-text="below"] .tile-media { flex: 1; aspect-ratio: auto !important; }
+.stack .video-card[data-height], .stack .post-card[data-height], .stack .image-card[data-height] { overflow: hidden; }
+
+/* Credentials: degrees, certificates, awards, roles. */
+.creds { border-radius: 22px; padding: 16px; }
+.creds-h { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 4px 12px; }
+.creds ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.cred { display: flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none; border-radius: 14px; }
+.cred-badge { flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; overflow: hidden; color: #fff; box-shadow: inset 0 0 0 1px #ffffff1f; }
+.cred-badge { position: relative; }
+.cred-badge img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 4px; box-sizing: border-box; background: #fff; }
+.cred-degree { background: linear-gradient(145deg, #5e8bff, #3a4fd6); }
+.cred-certificate { background: linear-gradient(145deg, #34c77b, #138a55); }
+.cred-award { background: linear-gradient(145deg, #ffc23a, #e8860c); }
+.cred-work { background: linear-gradient(145deg, #a78bfa, #6d4bd8); }
+.cred-copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.cred-copy b { font-size: 15px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.cred-copy span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.cred time { flex: none; font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.creds[data-variant="list"] li + li { border-top: 1px solid var(--glass-border); padding-top: 4px; }
+.creds[data-variant="list"] .cred { padding: 8px 4px; }
+a.cred:hover .cred-copy b { text-decoration: underline; text-underline-offset: 3px; }
+/* Cards: small certificate-like tiles, two per row. */
+.creds[data-variant="cards"] { padding: 0; }
+.creds[data-variant="cards"] .creds-h { margin-inline: 4px; }
+.creds[data-variant="cards"] ul { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.creds[data-variant="cards"] li { display: grid; }
+.creds[data-variant="cards"] .cred { position: relative; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; border-radius: 20px; background: var(--glass); border: 1px solid var(--glass-border); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
+.creds[data-variant="cards"] .cred-badge { width: 40px; height: 40px; border-radius: 11px; }
+.creds[data-variant="cards"] .cred time { position: absolute; top: 14px; right: 14px; padding: 3px 8px; border-radius: 999px; background: var(--glass); border: 1px solid var(--glass-border); font-size: 11px; }
+.creds[data-variant="cards"] .cred-copy b { font-size: 14px; }
+.creds[data-variant="cards"] .cred-copy span { font-size: 12px; }
+/* Timeline: year, a line with dots, then the entry. */
+.creds[data-variant="timeline"] ul { gap: 0; }
+.creds[data-variant="timeline"] .cred { position: relative; align-items: flex-start; gap: 12px; padding: 10px 4px; }
+.creds[data-variant="timeline"] .cred time { width: 44px; padding-top: 4px; text-align: right; }
+.creds[data-variant="timeline"] .cred-dot { flex: none; position: relative; width: 10px; align-self: stretch; }
+.creds[data-variant="timeline"] .cred-dot::before { content: ''; position: absolute; left: 4px; top: -10px; bottom: -10px; width: 2px; background: var(--glass-border); }
+.creds[data-variant="timeline"] .cred-dot::after { content: ''; position: absolute; left: 0; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: var(--text); box-shadow: 0 0 0 3px var(--glass); }
+.creds[data-variant="timeline"] li:first-child .cred-dot::before { top: 12px; }
+.creds[data-variant="timeline"] li:last-child .cred-dot::before { bottom: auto; height: 22px; }
+.creds[data-variant="timeline"] li:only-child .cred-dot::before { display: none; }
+.creds[data-variant="timeline"] .cred-badge { width: 34px; height: 34px; border-radius: 10px; }
+.creds[data-variant="timeline"] .cred-badge svg { width: 17px; height: 17px; }
+
+/* Card background chosen per item: glass, solid, outline or none. */
+.page .stack [data-card]:not(.creds[data-variant="cards"]), .page .stack .creds[data-variant="cards"][data-card] .cred { transition: background .2s ease; }
+.page .stack [data-card="glass"]:not(.creds[data-variant="cards"]), .page .stack .creds[data-variant="cards"][data-card="glass"] .cred { background: var(--glass); border: 1px solid var(--glass-border); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
+.page .stack [data-card="solid"]:not(.creds[data-variant="cards"]), .page .stack .creds[data-variant="cards"][data-card="solid"] .cred { background: color-mix(in srgb, var(--bg) 84%, var(--text)); border: 1px solid transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.page .stack [data-card="outline"]:not(.creds[data-variant="cards"]), .page .stack .creds[data-variant="cards"][data-card="outline"] .cred { background: transparent; border: 1.5px solid color-mix(in srgb, var(--text) 32%, transparent); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+.page .stack [data-card="none"]:not(.creds[data-variant="cards"]), .page .stack .creds[data-variant="cards"][data-card="none"] .cred { background: transparent; border-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+/* Items that are normally bare get room inside once they have a card. */
+.page .stack :is(.stats, .text-block, .bio.tagline)[data-card]:not([data-card="none"]) { padding: 14px 16px; border-radius: 20px; opacity: 1; }
+.page .stack .creds[data-card="none"]:not([data-variant="cards"]) { padding-inline: 0; }
+
+/* Shape items: decorative drawings. They keep a square unless stretched, and stay centered in their space. */
+.deco { display: grid; place-items: center; aspect-ratio: 1; align-self: center; color: var(--text); pointer-events: none; }
+html.canvas-editing .deco { pointer-events: auto; }
+.deco svg { width: 100%; height: 100%; overflow: visible; }
+.deco[data-height] svg { width: auto; max-width: 100%; }
+.deco[data-motion="spin"] svg { animation: deco-spin 18s linear infinite; }
+.deco[data-motion="float"] svg { animation: deco-float 5s ease-in-out infinite; }
+.deco[data-motion="pulse"] svg { animation: deco-pulse 3.2s ease-in-out infinite; }
+@keyframes deco-spin { to { transform: rotate(1turn); } }
+@keyframes deco-float { 50% { transform: translateY(-8%) rotate(4deg); } }
+@keyframes deco-pulse { 50% { transform: scale(.9); opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { .deco svg { animation: none !important; } }
+
+/* Text inside a stretched item stays centered in it and is shrunk to fit by FIT_SCRIPT (--fit). */
+.stack :is(.text-block, .bio)[data-height] { display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.stack .fit { display: block; }
+.stack :is(.row-link, .primary)[data-height] { overflow: hidden; }
+/* A short stretched card keeps most of its height for the text. */
+.page .stack :is(.text-block, .bio)[data-height][data-card]:not([data-card="none"]) { padding-block: min(14px, calc(var(--h) * .1)); }
+
+/* Lists and links inside text items. A list keeps its bullets on the left and sits where the text is aligned. */
+.text-block .text-para { display: block; }
+.text-block :is(ul, ol) { display: inline-block; margin: .25em 0; padding-left: 1.25em; text-align: left; white-space: normal; }
+.text-block li { margin: .2em 0; padding-left: .15em; }
+.text-block li::marker { color: var(--muted); }
+.text-block ol li::marker { font-variant-numeric: tabular-nums; }
+.text-link { color: inherit; text-decoration: underline; text-decoration-thickness: .07em; text-underline-offset: .16em; text-decoration-color: color-mix(in srgb, currentColor 50%, transparent); }
+.text-link:hover { text-decoration-color: currentColor; }
+
+/* Social icons: chosen glyph color (no white filter) and the circle behind each icon. */
+.social[data-icon-color] img { filter: none; }
+.page .stack .social[data-icon-style="solid"] a { background: color-mix(in srgb, var(--bg) 84%, var(--text)); border-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.page .stack .social[data-icon-style="outline"] a { background: transparent; border: 1.5px solid color-mix(in srgb, var(--text) 35%, transparent); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.page .stack .social[data-icon-style="none"] a { background: transparent; border-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.page .stack .social[data-icon-style="none"] img, .page .stack .social[data-icon-style="none"] svg { width: 28px; height: 28px; }
+
+/* Turn chosen per item (layout editor's rotation handle). */
+.stack [data-rotate] { rotate: var(--rot, 0deg); }
+
+/* Freely placed items: lifted out of the layout and pinned in place, so moving other items never moves them. */
+.stack > [data-float], .stack > .rows > [data-float], .stack > .tiles > [data-float] { position: absolute !important; left: var(--fx); top: var(--fy); width: var(--fw); max-width: none; margin: 0 !important; grid-column: auto !important; grid-row: auto !important; translate: none; z-index: 3; box-sizing: border-box; }
+
+/* Empty space: keeps room where an item was (only visible in the layout editor). */
+.space { min-height: 1px; pointer-events: none; }
+html.canvas-editing .space { pointer-events: auto; }
+
+/* Button padding chosen per button: the button hugs its text (0) or gets roomier. */
+.page .stack :is(.row-link, .primary)[data-pad] { min-height: 0 !important; padding: var(--pad) !important; padding-inline: calc(var(--pad) * 1.3 + 6px) !important; }
+
+/* Line spacing chosen per item. */
+.page .stack [data-lh], .page .stack [data-lh] * { line-height: var(--lh) !important; }
+/* Word spacing chosen per item (in em, so it follows the text size). */
+.page .stack [data-ws], .page .stack [data-ws] * { word-spacing: var(--ws) !important; }
+
+/* Tile text beside the picture (Text: Side, Left or Right): the picture keeps its shape, the text sits next to it. */
+.page .tile:is([data-text="left"], [data-text="right"]) { aspect-ratio: auto !important; height: auto; overflow: visible; display: flex; align-items: center; gap: 14px; color: var(--text); border-radius: 0; }
+.page .tile[data-text="left"] { flex-direction: row-reverse; }
+.page .tile:is([data-text="left"], [data-text="right"]) .tile-media { position: relative; inset: auto; flex: 0 0 46%; aspect-ratio: var(--tile-ratio, 1); border-radius: 20px; }
+.page .tile[data-shape="circle"]:is([data-text="left"], [data-text="right"]) .tile-media { border-radius: 50%; }
+.page .tile[data-shape="banner"]:is([data-text="left"], [data-text="right"]) .tile-media { aspect-ratio: auto; height: 84px; }
+.page .tile:is([data-text="left"], [data-text="right"]) span { position: static; flex: 1; min-width: 0; padding: 0; background: none; text-shadow: none; font-size: 17px; font-weight: 600; line-height: 1.3; }
+.page .tile[data-text="left"] span { text-align: right; }
+.page .tile[data-text="right"] span { text-align: left; }
+/* With text beside it, the picture keeps its shape and the row is as tall as the picture (a stretched height is ignored). */
+.stack .tile[data-height]:is([data-text="left"], [data-text="right"]) { height: auto !important; }
+
+/* Text weight chosen per item; words marked bold inside it stay a step heavier. */
+.page .stack [data-weight], .page .stack [data-weight] :is(h1, h2, h3, p, span, figcaption, li, div, a) { font-weight: var(--wt) !important; }
+.page .stack [data-weight] :is(b, strong) { font-weight: min(900, calc(var(--wt) + 300)) !important; }
+
+/* Voice message: a glass pill with a play button, the waveform and its length. Card style can change the background. */
+.voice { display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 10px; border-radius: 999px; color: var(--text); background: var(--glass); border: 1px solid var(--glass-border); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
+.voice-play { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); }
+.voice-play svg:not(.voice-ring) { fill: currentColor; }
+.voice-play svg:nth-of-type(2), .voice.playing .voice-play svg:nth-of-type(1) { display: none; }
+.voice.playing .voice-play svg:nth-of-type(2) { display: block; }
+.voice-body { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.voice-title { font-size: 13px; font-weight: 600; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice-wave { display: flex; align-items: center; gap: 2px; height: 28px; }
+.voice-wave i { flex: 1; min-width: 2px; border-radius: 2px; background: currentColor; opacity: .28; transition: opacity .2s ease; }
+.voice-wave i.on { opacity: .95; }
+.voice-time { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; opacity: .7; }
+.voice audio { display: none; }
+.voice.audio-fallback { flex-wrap: wrap; border-radius: 22px; height: auto !important; }
+.voice.audio-fallback audio { display: block; flex: 0 0 100%; width: 100%; height: 40px; }
+.audio-notice { max-width: min(420px, calc(100vw - 32px)); white-space: normal; text-align: center; line-height: 1.4; }
+
+/* Music button, next to Share: plays music made in the browser, only when tapped. */
+/* Music and disco buttons sit together: top right next to Share (default), top left, or floating at the bottom of the screen. */
+.page-tools { position: absolute; top: 16px; right: 60px; z-index: 3; display: flex; flex-direction: row-reverse; gap: 8px; }
+.page-tools[data-pos="left"] { right: auto; left: 16px; flex-direction: row; }
+.page-tools[data-pos="bottom"] { position: fixed; top: auto; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 25; flex-direction: column-reverse; }
+.page-tools[data-pos="bottom"] button { width: 44px; height: 44px; box-shadow: 0 6px 20px #0004; }
+.music { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--text); }
+.music.on { background: var(--accent); color: var(--on-accent); animation: music-beat 1.4s ease-in-out infinite; }
+@keyframes music-beat { 50% { transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .music.on { animation: none; } }
+
+/* Disco mode (the 🪩 button). Everything keeps working: the lights let taps through and items only sway a little. */
+.disco-btn { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--text); }
+.disco-btn.on { background: conic-gradient(from 0deg, #ff2d92, #ffd60a, #30d158, #0a84ff, #bf5af2, #ff2d92); color: #fff; animation: disco-spin 2s linear infinite; }
+.disco-lights { display: none; position: fixed; inset: 0; z-index: 20; pointer-events: none; overflow: hidden; }
+html.disco .disco-lights { display: block; }
+.disco-lights i { position: absolute; left: 50%; top: -10%; width: 220vmax; height: 220vmax; margin-left: -110vmax; margin-top: -110vmax; mix-blend-mode: screen; opacity: .28;
+  background: repeating-conic-gradient(from 0deg, #ff2d92 0deg 6deg, transparent 6deg 30deg, #0a84ff 30deg 36deg, transparent 36deg 60deg, #ffd60a 60deg 66deg, transparent 66deg 90deg);
+  animation: disco-spin 9s linear infinite; }
+.disco-lights i:nth-child(2) { left: 0; top: 110%; opacity: .2; animation-duration: 13s; animation-direction: reverse; filter: hue-rotate(120deg); }
+.disco-lights i:nth-child(3) { left: 100%; top: 70%; opacity: .18; animation-duration: 7s; filter: hue-rotate(240deg); }
+.disco-ball { position: absolute; top: -18px; left: 50%; width: 64px; height: 64px; margin-left: -32px; border-radius: 50%;
+  background: repeating-linear-gradient(90deg, #fff 0 6px, #9aa 6px 8px), #ccd; background-blend-mode: multiply; box-shadow: 0 0 30px 8px #fff8, 0 0 80px 20px #bf5af266;
+  -webkit-mask: radial-gradient(circle, #000 70%, transparent 71%); mask: radial-gradient(circle, #000 70%, transparent 71%); animation: disco-ball 1.2s steps(6) infinite; }
+.disco-ball::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 2px; height: 40px; background: #ccc; }
+html.disco .stack > [data-block-id], html.disco .stack > :is(.rows, .tiles) > [data-block-id] { animation: disco-sway 1.36s ease-in-out infinite alternate; }
+html.disco .stack [data-block-id]:nth-child(even) { animation-direction: alternate-reverse; animation-duration: 1.36s; }
+html.disco .deco svg { animation: disco-spin 3s linear infinite; }
+html.disco :is(.hero img, .avatar img, .profile-cover img), html.disco .backdrop { animation: disco-hue 4s linear infinite; }
+@keyframes disco-spin { to { transform: rotate(360deg); } }
+@keyframes disco-sway { from { transform: rotate(-2.5deg) scale(.985); } to { transform: rotate(2.5deg) scale(1.015); } }
+@keyframes disco-hue { to { filter: hue-rotate(360deg) saturate(1.4); } }
+@keyframes disco-ball { to { background-position: 48px 0; } }
+@media (prefers-reduced-motion: reduce) {
+  html.disco .stack [data-block-id], html.disco .deco svg, .disco-lights i, .disco-ball, .disco-btn.on { animation: none !important; }
+}
+
+/* Text sits on the top layer: above pictures, cards, shapes and other free items (free ones are at 3). */
+.stack .text-block { position: relative; z-index: 6; }
+.stack > .text-block[data-float] { z-index: 7; }
+
+/* Text color chosen per item. */
+.page .stack [data-tc], .page .stack [data-tc] :is(h1, h2, h3, p, span, figcaption, li, div, a, strong, em, u, s, .handle) { color: var(--tc) !important; }
+.page .stack [data-tc] li::marker { color: var(--tc); }
+
+/* The voice message fits any size. Full: play, label, waveform, length. Medium: a section of the waveform.
+   Small: play and length centered, the button pulsing gently; a ring around it fills while it plays. */
+.voice { container-type: inline-size; min-width: 0; overflow: hidden; box-sizing: border-box; }
+.voice-body, .voice-wave { min-width: 0; overflow: hidden; }
+.voice-wave i { min-width: 1px; }
+.voice-play { position: relative; }
+.voice-ring { position: absolute; inset: -5px; width: calc(100% + 10px); height: calc(100% + 10px); transform: rotate(-90deg); pointer-events: none; overflow: visible; }
+.voice-ring circle { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 100; }
+.voice-ring .track { opacity: 0; stroke-dashoffset: 0; }
+.voice-ring .done { stroke-dashoffset: calc(100 - var(--p, 0) * 100); opacity: 0; transition: stroke-dashoffset .25s linear, opacity .2s; }
+.voice.playing .voice-ring .done, .voice[data-progress] .voice-ring .done { opacity: .95; }
+.stack .voice[data-height] .voice-play { width: min(64px, calc(var(--h) - 20px)); height: min(64px, calc(var(--h) - 20px)); }
+@container (max-width: 250px) {
+  .voice-play { width: 34px; height: 34px; }
+  .voice-play svg:not(.voice-ring) { width: 15px; height: 15px; }
+  .voice-title { font-size: 11px; }
+  .voice-wave { height: 20px; gap: 2px; }
+  .voice-wave i:nth-child(n+17) { display: none; }
+  .voice-time { font-size: 10px; }
+}
+@container (max-width: 160px) {
+  .voice-body { display: none; }
+  .voice-play { margin-left: auto; width: 40px; height: 40px; }
+  .voice-time { margin-right: auto; font-size: 13px; font-weight: 600; opacity: .85; }
+  .voice-ring .track { opacity: .22; }
+  .voice:not(.playing) .voice-play::after { content: ''; position: absolute; inset: 0; border-radius: 50%; animation: voice-pulse 2.4s ease-out infinite; }
+}
+@keyframes voice-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 12px transparent; } }
+@media (prefers-reduced-motion: reduce) { .voice-play::after { animation: none !important; } }
+
+/* Text alignment toolbar: justified lines, and text at the top or bottom of a box stretched taller than it. */
+.text-block[data-align="justify"] { text-align: justify; }
+.stack .text-block[data-height][data-valign="top"] { justify-content: flex-start; }
+.stack .text-block[data-height][data-valign="bottom"] { justify-content: flex-end; }
+
+/* Layer chosen per item (Bring forward / Send backward). */
+.page .stack [data-z] { z-index: var(--z) !important; }
+.page .stack [data-z]:not([data-float]) { position: relative; }
+
+/* Items may hang over the screen's edge on purpose: the part outside is cut off, and the page never scrolls sideways. */
+html, body { overflow-x: hidden; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }
+
+/* PDF card: icon, title, size, Open. Card style can change its background. */
+.file-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 18px; color: var(--text); text-decoration: none; background: var(--glass); border: 1px solid var(--glass-border); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); container-type: inline-size; min-width: 0; }
+.file-icon { flex: none; position: relative; display: grid; place-items: center; width: 44px; height: 52px; border-radius: 10px; background: #ff3b30; color: #fff; }
+.file-icon svg { opacity: .35; }
+.file-icon b { position: absolute; bottom: 6px; font: 800 11px/1 system-ui, sans-serif; letter-spacing: .04em; }
+.file-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.file-title { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-meta { font-size: 12px; opacity: .65; }
+.file-open { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 13px; font-weight: 600; }
+@container (max-width: 230px) { .file-open { display: none; } }
+
+/* Link Menu: a button that opens down into its links. It opens smoothly where the browser can animate to "auto". */
+.link-menu { display: block; min-width: 0; interpolate-size: allow-keywords; }
+.link-menu > summary { list-style: none; cursor: pointer; position: relative; padding-right: 48px; -webkit-user-select: none; user-select: none; }
+.link-menu > summary::-webkit-details-marker { display: none; }
+.link-menu > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.page .link-menu .menu-chevron { position: absolute; right: 16px; top: 50%; display: grid; place-items: center; width: 22px; height: 22px; margin-top: -11px; font-style: normal; transition: transform .3s ease; }
+.page .link-menu .menu-chevron svg { display: block; opacity: .7; transform: none; }
+.link-menu[open] .menu-chevron { transform: rotate(180deg); }
+.link-menu::details-content { block-size: 0; overflow: clip; transition: block-size .36s cubic-bezier(.2, .8, .2, 1), content-visibility .36s allow-discrete; }
+.link-menu[open]::details-content { block-size: auto; }
+.menu-links { display: grid; gap: 8px; padding-top: 8px; }
+.menu-links .row-link { min-height: 48px; padding: 11px 16px; font-size: 15px; }
+.link-menu[open] .menu-links > * { animation: menu-in .32s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--n, 0) * 40ms); }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-8px); } }
+.menu-empty { margin: 0; padding: 10px 4px; font-size: 13px; opacity: .6; text-align: center; }
+/* A stretched menu: the button keeps the chosen height, its links still open below it. */
+.stack .link-menu[data-height] { height: auto !important; overflow: visible; }
+.stack .link-menu[data-height] > summary { min-height: var(--h); box-sizing: border-box; }
+.stack .link-menu > summary > span { zoom: calc(var(--text-scale, 1) * var(--fit, 1)); }
+@media (prefers-reduced-motion: reduce) {
+  .link-menu::details-content, .page .link-menu .menu-chevron { transition: none; }
+  .link-menu[open] .menu-links > * { animation: none; }
 }

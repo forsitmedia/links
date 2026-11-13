@@ -1,19 +1,24 @@
 /** Editor shell, visual layout canvas and publishing. */
 import { renderPage } from '../../lib/render';
-import { state, onChange, isDirty, changed, undo, redo, canUndo, canRedo } from './state';
+import { state, onChange, isDirty, changed, undo, redo, canUndo, canRedo, setAnchor, openMenus } from './state';
 import { pageTab } from './page-tab';
-import { editPageBlock, editSocialIcon, addItemMenu } from './block-editor';
+import { editPageBlock, editSocialIcon, addItemMenu, musicSheet } from './block-editor';
 import { settingsTab } from './settings-tab';
 import { insightsTab } from './insights-tab';
-import { openPublish } from './publish';
+import { openPublish, pageUrl } from './publish';
 import { welcome } from './welcome';
 import { VisualCanvas } from './canvas';
 import { h, segmented, svg } from './ui';
+import { ALL_FONTS_LINK } from '../../lib/look';
+
+// The font pickers show each font in its own letters.
+document.head.insertAdjacentHTML('beforeend', ALL_FONTS_LINK());
 
 type Tab = 'page' | 'insights' | 'settings';
 const TITLES: Record<Tab, string> = { page: 'Your Page', insights: 'Insights', settings: 'Settings' };
 let tab: Tab = 'page';
 const saveBtn = h('button', { class: 'btn-text bold', type: 'button', onclick: openPublish }, 'Publish') as HTMLButtonElement;
+const viewPage = h('a', { class: 'btn-text', href: pageUrl(), target: '_blank', rel: 'noopener' }, 'View Page');
 const canvasSave = h('button', { class: 'btn-text bold', type: 'button', 'aria-label': 'Publish page design', onclick: openPublish }, 'Publish') as HTMLButtonElement;
 const title = h('h1', { class: 'large-title' }), content = h('div', { class: 'content' });
 const newFrame = () => h('iframe', { title: 'Page preview', allow: 'autoplay; fullscreen; picture-in-picture' }) as HTMLIFrameElement;
@@ -28,6 +33,7 @@ const canvas = new VisualCanvas({
   save: openPublish,
   undo, redo, canUndo, canRedo,
 });
+setAnchor(() => canvas.anchor());
 const mode = segmented([{ value: 'edit', label: 'Edit layout' }, { value: 'view', label: 'Preview' }], 'edit', (value) => setMode(value === 'edit'));
 mode.classList.add('canvas-mode');
 function setMode(edit: boolean) {
@@ -37,10 +43,39 @@ function setMode(edit: boolean) {
 }
 function openCanvas() { setMode(true); stage.classList.add('open'); document.body.classList.add('canvas-open'); }
 function closeCanvas() { stage.classList.remove('open'); document.body.classList.remove('canvas-open'); }
+// Undo / Redo and the guides switch, always in view above the page.
+const undoBtn = h('button', { type: 'button', class: 'history-btn', title: 'Undo (Cmd/Ctrl+Z)', onclick: () => canvas.undo() }, '↶', h('span', {}, 'Undo')) as HTMLButtonElement;
+const redoBtn = h('button', { type: 'button', class: 'history-btn', title: 'Redo (Cmd/Ctrl+Shift+Z)', onclick: () => canvas.redo() }, '↷', h('span', {}, 'Redo')) as HTMLButtonElement;
+const guidesBtn = h('button', { type: 'button', class: 'history-btn guides-btn', title: 'Purple guides and snapping while you move or resize items',
+  onclick: () => { canvas.setGuides(!canvas.guidesOn); refreshHistory(); } }, '⌗', h('span', {}, 'Guides')) as HTMLButtonElement;
+const historyBar = h('div', { class: 'history-bar' }, undoBtn, redoBtn, guidesBtn);
+function refreshHistory() {
+  undoBtn.disabled = !canUndo(); redoBtn.disabled = !canRedo();
+  guidesBtn.setAttribute('aria-pressed', String(canvas.guidesOn)); guidesBtn.classList.toggle('on', canvas.guidesOn);
+}
+onChange(() => setTimeout(refreshHistory));
+setInterval(refreshHistory, 800); // typing is grouped into one step after a pause, so check now and then too
+document.addEventListener('keydown', (e) => {
+  // Only real text fields keep their own undo; sliders, buttons and checkboxes don't, so Cmd/Ctrl+Z still undoes the design.
+  const typing = (e.target as HTMLElement)?.closest?.('textarea, [contenteditable], input:not([type="range"], [type="checkbox"], [type="radio"], [type="color"], [type="button"])');
+  if (!typing && (e.key === 'Delete' || e.key === 'Backspace') && !document.querySelector('.sheet')) { e.preventDefault(); canvas.deleteSelection(); refreshHistory(); return; }
+  const key = e.key.toLowerCase();
+  // Copy and paste items (text being typed or selected keeps the normal copy and paste).
+  if (!typing && (e.metaKey || e.ctrlKey) && !document.querySelector('.sheet') && !getSelection()?.toString()) {
+    if (key === 'c' && canvas.copySelection()) { e.preventDefault(); return; }
+    if (key === 'v' && canvas.paste()) { e.preventDefault(); refreshHistory(); return; }
+    if (key === 'g') { e.preventDefault(); canvas.group(!e.shiftKey); refreshHistory(); return; }
+    if (['[', ']', '{', '}'].includes(e.key)) { const up = e.key === ']' || e.key === '}'; if (canvas.layer(e.shiftKey ? (up ? 'front' : 'back') : up ? 'forward' : 'backward')) { e.preventDefault(); refreshHistory(); } return; }
+  }
+  if (typing || !(e.metaKey || e.ctrlKey) || (key !== 'z' && key !== 'y')) return;
+  e.preventDefault(); key === 'y' || e.shiftKey ? canvas.redo() : canvas.undo(); refreshHistory();
+});
+addEventListener('yourlinki-clean-layout', (e) => canvas.cleanLayout((e as CustomEvent).detail));
+addEventListener('yourlinki-open-music', () => musicSheet());
 const surface = h('div', { class: 'preview-surface' }, frame);
 const deviceArea = h('div', { class: 'device-area' }, surface);
 const stage = h('div', { class: 'stage' },
-  h('div', { class: 'stage-head' }, h('span', { class: 'canvas-heading' }, 'Live canvas'), mode, canvasSave,
+  h('div', { class: 'stage-head' }, historyBar, mode, canvasSave,
     h('button', { class: 'stage-close btn-text', type: 'button', 'aria-label': 'Close design editor', onclick: closeCanvas }, 'Done')),
   h('div', { class: 'canvas-workspace' }, deviceArea, inspector));
 
@@ -53,7 +88,7 @@ new ResizeObserver(fitDevice).observe(deviceArea);
 
 document.getElementById('app')!.append(h('div', { class: 'app' },
   h('div', { class: 'editor' },
-    h('div', { class: 'navbar' }, h('a', { class: 'btn-text', href: '../', target: '_blank' }, 'View Page'), saveBtn),
+    h('div', { class: 'navbar' }, viewPage, saveBtn),
     title,
     segmented<Tab>([{ value: 'page', label: 'Page' }, { value: 'insights', label: 'Insights' }, { value: 'settings', label: 'Settings' }], tab, (v) => { tab = v; draw(); }),
     content),
@@ -89,12 +124,16 @@ function updatePreview() {
     frame.remove();
     next.className = '';
     frame = next; incoming = null;
+    next.contentWindow?.dispatchEvent(new Event('yourlinki-preview-ready'));
   };
-  next.srcdoc = renderPage(state.cfg, { preview: true });
+  next.srcdoc = renderPage(state.cfg, { preview: true, openMenus: [...openMenus] });
   surface.append(next);
 }
 /** Publish stays available (a download may never have been uploaded); a dot shows unpublished changes. */
-function markChanges() { [saveBtn, canvasSave].forEach((b) => b.classList.toggle('has-changes', isDirty())); }
+function markChanges() {
+  viewPage.setAttribute('href', pageUrl());
+  [saveBtn, canvasSave].forEach((b) => b.classList.toggle('has-changes', isDirty()));
+}
 onChange((rerender) => {
   markChanges();
   clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, 120);
@@ -102,12 +141,7 @@ onChange((rerender) => {
 });
 addEventListener('keydown', (e) => {
   if (!(e.metaKey || e.ctrlKey)) return;
-  if (e.key === 's') { e.preventDefault(); openPublish(); return; }
-  // Text fields keep their own undo; open sheets edit objects an undo would replace.
-  const typing = (e.target as HTMLElement).closest?.('input, textarea, [contenteditable]');
-  if (typing || document.querySelector('.sheet-back')) return;
-  const key = e.key.toLowerCase();
-  if (key === 'z' || key === 'y') { e.preventDefault(); key === 'y' || e.shiftKey ? redo() : undo(); }
+  if (e.key === 's') { e.preventDefault(); openPublish(); } // undo and redo are handled once, above
 });
 markChanges();
 draw(); updatePreview();

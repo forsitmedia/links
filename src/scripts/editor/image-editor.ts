@@ -28,11 +28,27 @@ export function adjustImage(o: Options) {
   const stage = h('div', { class: 'image-crop' + (o.round ? ' is-round' : ''), style: `aspect-ratio:${o.aspect ?? 1}`, tabindex: '0', role: 'group', 'aria-label': 'Image position. Drag or use arrow keys.' }, picture);
 
   function range(label: string, key: 'zoom' | 'x' | 'y', min: number, max: number, step: number) {
-    const output = h('output');
+    const output = h('output', { title: 'Click to type a value' });
     const input = h('input', { type: 'range', min, max, step, 'aria-label': label, oninput: (e: Event) => {
       frame[key] = Number((e.target as HTMLInputElement).value);
       update();
     } }) as HTMLInputElement;
+    // Click the value to type an exact one, in % as shown (zoom 250 = 2.5×), to match another image's framing.
+    output.addEventListener('click', (event) => {
+      event.preventDefault();
+      const field = h('input', { type: 'text', inputmode: 'decimal', class: 'value-edit', 'aria-label': `${label} value`, value: String(parseFloat(output.textContent ?? '') || 0) }) as HTMLInputElement;
+      let done = false;
+      const close = (apply: boolean) => {
+        if (done) return; done = true;
+        const typed = parseFloat(field.value.replace(',', '.'));
+        field.replaceWith(output);
+        if (apply && Number.isFinite(typed)) { frame[key] = Math.min(Number(input.max), Math.max(Number(input.min), key === 'zoom' ? typed / 100 : typed)); update(); }
+      };
+      field.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); close(true); } if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(false); } });
+      field.addEventListener('blur', () => close(true));
+      field.addEventListener('click', (e) => e.preventDefault());
+      output.replaceWith(field); field.focus(); field.select();
+    });
     return { input, output, row: h('label', { class: 'row image-range' }, h('span', { class: 'image-range-label' }, label, output), input) };
   }
   const zoom = range('Zoom', 'zoom', frame.fit === 'cover' ? 1 : .5, 4, .01);

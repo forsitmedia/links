@@ -2,6 +2,7 @@
  * The worker address is part of the page config (the page sends its visits there); the password stays in this browser. */
 import { state, changed } from './state';
 import { h, group, inputRow, navRow, toast } from './ui';
+import { discoverPage } from './page-url';
 
 const KEY = 'yourlinki-stats-password';
 const read = (k: string) => { try { return localStorage.getItem(k) ?? ''; } catch { return ''; } };
@@ -15,8 +16,8 @@ export const signedIn = () => !!workerUrl() && !!read(KEY);
 export const signOut = () => write(KEY, '');
 
 /** A request to the worker with the saved password. A 401 signs this browser out. */
-export async function api(path: string, init: RequestInit = {}): Promise<Response> {
-  const res = await fetch(workerUrl() + path, { ...init, headers: { ...(init.headers ?? {}), authorization: 'Bearer ' + read(KEY) } });
+export async function api(path: string, init: RequestInit = {}, endpoint = workerUrl()): Promise<Response> {
+  const res = await fetch(endpoint + path, { ...init, headers: { ...(init.headers ?? {}), authorization: 'Bearer ' + read(KEY) } });
   if (res.status === 401) signOut();
   return res;
 }
@@ -36,6 +37,8 @@ export function signInForm(done: () => void, o: { header?: string; footer?: stri
     } catch { return toast('Could not reach that address'); }
     write(KEY, password);
     if (state.cfg.stats !== url) { state.cfg.stats = url; changed(); }
+    await discoverPage(url);
+    changed(true);
     done();
   };
   const form = h('form', { onsubmit: (e: Event) => { e.preventDefault(); submit(); } },

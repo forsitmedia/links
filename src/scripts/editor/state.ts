@@ -1,13 +1,17 @@
+import type { PageBlock } from '../../lib/types';
 /** Editor state: the config being edited, change notifications, the browser draft and publishing. */
 import { normalize, type Config } from '../../lib/types';
 import { CONFIG_ID, renderPage } from '../../lib/render';
+import { discoverPage, editorPageUrl, publishedPageUrl, rememberedPage, rememberPage, requestedPage } from './page-url';
 
 const DRAFT_KEY = 'draft';
 
-/** The page published next to the editor (`../index.html`), or null before the first publish. */
-async function loadPublished(): Promise<Config | null> {
+/** Read the actual public page, including when the publisher uses a different repository. */
+async function loadPublished(page: string): Promise<Config | null> {
   try {
-    const res = await fetch('../index.html', { cache: 'no-cache' });
+    const url = new URL('index.html', page);
+    url.searchParams.set('yourlinki-read', String(Date.now()));
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return null;
     const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
     const json = doc.getElementById(CONFIG_ID)?.textContent;
@@ -32,11 +36,28 @@ function draftStore<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) =>
   });
 }
 
-const published = await loadPublished();
-const draft = await draftStore<string>('readonly', (s) => s.get(DRAFT_KEY)).then((d) => { try { return d ? normalize(JSON.parse(d)) : null; } catch { return null; } });
+const initialPage = requestedPage() ?? rememberedPage()?.url ?? editorPageUrl();
+const [initialPublished, draft] = await Promise.all([
+  loadPublished(initialPage),
+  draftStore<string>('readonly', (s) => s.get(DRAFT_KEY)).then((d) => { try { return d ? normalize(JSON.parse(d)) : null; } catch { return null; } }),
+]);
+let published = initialPublished;
+const worker = draft?.stats ?? published?.stats ?? rememberedPage()?.worker;
+if (worker) {
+  if (published?.stats === worker) rememberPage(worker, initialPage);
+  await discoverPage(worker);
+  const page = publishedPageUrl(worker);
+  if (page !== initialPage) published = await loadPublished(page);
+}
 
 // A draft started before the worker was connected still publishes and signs in through it.
 if (draft && !draft.stats && published?.stats) draft.stats = published.stats;
+// An older draft keeps its edits while picking up the page's newly added scroll settings.
+if (draft && draft.look.reveal === undefined && published?.look.reveal !== undefined) {
+  draft.look.reveal = published.look.reveal;
+  draft.look.revealDuration = published.look.revealDuration;
+  draft.look.revealRepeat = published.look.revealRepeat;
+}
 
 export const state = {
   cfg: draft ?? published ?? normalize({}),
@@ -102,11 +123,11 @@ export const canRedo = () => future.length > 0;
 export const isDirty = () => !state.hasPublished || JSON.stringify(state.cfg) !== state.saved;
 
 /** The complete public page, ready to upload as `index.html`. */
-export const pageFile = () => renderPage(state.cfg);
+export const pageFile = (config = state.cfg) => renderPage(config);
 
-/** After the page file is downloaded: treat this version as published and drop the draft. */
-export function markPublished() {
-  state.saved = JSON.stringify(state.cfg);
+/** Save the version actually uploaded; edits made while publishing remain a draft. */
+export function markPublished(snapshot = JSON.stringify(state.cfg)) {
+  state.saved = snapshot;
   state.hasPublished = true;
   persistDraft();
   changed();
@@ -114,7 +135,7 @@ export function markPublished() {
 
 /** Throws away the browser draft and goes back to the published page. */
 export async function discardDraft() {
-  const page = await loadPublished();
+  const page = await loadPublished(publishedPageUrl(state.cfg.stats));
   state.cfg = page ?? normalize({});
   state.saved = JSON.stringify(state.cfg);
   state.hasPublished = !!page;
@@ -123,3 +144,23 @@ export async function discardDraft() {
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 8);
+
+/** Where new items go: right after the selected item, or after the one in view in the layout editor (set by the canvas). */
+let anchor: () => string | null | undefined = () => null;
+export const setAnchor = (fn: typeof anchor) => { anchor = fn; };
+/** Where the Add menu puts new items: at the top (under the photo and name), after the selected item, or at the bottom. Remembered on this device. */
+export type AddAt = 'top' | 'here' | 'bottom';
+export const addAt = {
+  get(): AddAt { try { const v = localStorage.getItem('yourlinki-add-at'); return v === 'here' || v === 'bottom' ? v : 'top'; } catch { return 'top'; } },
+  set(v: AddAt) { try { localStorage.setItem('yourlinki-add-at', v); } catch {} },
+};
+export function placeBlock(block: PageBlock) {
+  const blocks = state.cfg.blocks, where = addAt.get();
+  let at = -1;
+  if (where === 'here') at = blocks.findIndex((b) => b.id === anchor()) + 1;
+  if (where === 'top') { const head = Math.max(blocks.findIndex((b) => b.type === 'profile'), blocks.findIndex((b) => b.type === 'name')); at = head + 1; }
+  if (at <= 0 && where !== 'top') blocks.push(block); else blocks.splice(Math.max(0, at), 0, block);
+}
+
+/** Link Menus the preview shows open while their sheet is open, so the creator sees the links they add. */
+export const openMenus = new Set<string>();

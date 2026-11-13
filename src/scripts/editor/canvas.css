@@ -4,13 +4,27 @@ html.canvas-editing [data-block-id] :is(a, img) { -webkit-user-drag: none; -webk
 html.canvas-editing [data-profile-part] { cursor: pointer; }
 html.canvas-editing [data-social-id] { touch-action: none; cursor: grab; -webkit-user-drag: none; }
 html.canvas-editing [data-block-id]:hover { outline: 1px dashed #007aff80; outline-offset: 3px; }
-html.canvas-editing [data-block-id].canvas-selected { outline: 2px solid #007aff; outline-offset: 4px; }
-html.canvas-editing .canvas-part-selected { outline: 2px solid #007aff; outline-offset: 3px; }
+html.canvas-editing [data-block-id].canvas-selected { outline: 1.5px dashed #007aff; outline-offset: 4px; }
+html.canvas-editing .canvas-part-selected { outline: 1.5px dashed #007aff; outline-offset: 3px; }
 .canvas-ui { position: absolute; z-index: 100; pointer-events: none; box-sizing: border-box; }
 .canvas-ui button { pointer-events: auto; display: grid; place-items: center; width: 34px; height: 34px; background: #007aff; color: #fff; border-radius: 9px; border: 2px solid #fff; box-shadow: 0 2px 8px #0002; cursor: pointer; }
-.canvas-ui .canvas-drag { position: absolute; top: 0; left: 0; transform: translate(-4px, -25%); touch-action: none; cursor: grab; }
-.canvas-ui .canvas-edit { position: absolute; top: 0; right: 0; transform: translate(4px, -25%); font: 600 11px system-ui; width: 42px; }
-.canvas-ui .canvas-resize { position: absolute; bottom: 0; right: 0; transform: translate(6px, 6px); touch-action: none; cursor: nwse-resize; border-radius: 50%; width: 28px; height: 28px; }
+/* Move and Edit sit just above the box, so they never cover what is selected. */
+.canvas-ui .canvas-drag { position: absolute; top: 0; left: 0; transform: translate(-4px, calc(-100% - 8px)); touch-action: none; cursor: grab; width: 30px; height: 26px; border-radius: 8px; }
+.canvas-ui .canvas-edit { position: absolute; top: 0; right: 0; transform: translate(4px, calc(-100% - 8px)); font: 600 11px system-ui; width: 42px; height: 26px; border-radius: 8px; }
+/* Stretch handles: small dots in the middle of each side. */
+.canvas-ui .canvas-resize, .canvas-ui .canvas-side { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid #007aff; box-shadow: 0 1px 4px #0003; touch-action: none; }
+.canvas-ui .canvas-resize { top: 50%; right: 0; transform: translate(calc(50% + 4px), -50%); cursor: ew-resize; }
+.canvas-ui .canvas-side[data-side="left"] { top: 50%; left: 0; transform: translate(calc(-50% - 4px), -50%); cursor: ew-resize; }
+.canvas-ui .canvas-side[data-side="top"] { top: 0; left: 50%; transform: translate(-50%, calc(-50% - 4px)); cursor: ns-resize; }
+.canvas-ui .canvas-side[data-side="bottom"] { bottom: 0; left: 50%; transform: translate(-50%, calc(50% + 4px)); cursor: ns-resize; }
+/* Corner handles: square dots that change width and height together. */
+.canvas-ui .canvas-corner { border-radius: 3px; width: 12px; height: 12px; }
+.canvas-ui .canvas-corner[data-side="top-left"] { top: 0; left: 0; transform: translate(calc(-50% - 4px), calc(-50% - 4px)); cursor: nwse-resize; }
+.canvas-ui .canvas-corner[data-side="top-right"] { top: 0; right: 0; transform: translate(calc(50% + 4px), calc(-50% - 4px)); cursor: nesw-resize; }
+.canvas-ui .canvas-corner[data-side="bottom-left"] { bottom: 0; left: 0; transform: translate(calc(-50% - 4px), calc(50% + 4px)); cursor: nesw-resize; }
+.canvas-ui .canvas-corner[data-side="bottom-right"] { bottom: 0; right: 0; transform: translate(calc(50% + 4px), calc(50% + 4px)); cursor: nwse-resize; }
+/* A bigger invisible grip around each dot, easier to catch with a finger. */
+.canvas-ui .canvas-resize::after, .canvas-ui .canvas-side::after { content: ''; position: absolute; inset: -12px; }
 .canvas-ui button:focus-visible { outline: 3px solid #ffcc00; outline-offset: 3px; }
 .canvas-ui button[hidden], .canvas-ui.is-social button { display: none; }
 .canvas-social-ghost { position: fixed !important; z-index: 150; display: grid; place-items: center; pointer-events: none; opacity: .85; border-radius: 50%; box-shadow: 0 6px 18px #0003; }
@@ -19,4 +33,22 @@ html.canvas-editing .social:has(.canvas-part-selected):hover { outline: none; }
 .canvas-drop { position: absolute; height: 4px; background: #007aff; border-radius: 3px; z-index: 150; pointer-events: none; box-shadow: 0 0 0 2px #fff; }
 .canvas-ghost { position: fixed !important; z-index: 140; pointer-events: none !important; opacity: .85; margin: 0 !important; box-shadow: 0 12px 30px #0003; max-height: 260px; overflow: hidden; border-radius: 12px; }
 .canvas-source { opacity: .25; }
-@media (pointer: coarse) { .canvas-ui button { width: 40px; height: 40px; } .canvas-ui .canvas-resize { width: 34px; height: 34px; } }
+@media (pointer: coarse) { .canvas-ui :is(.canvas-drag, .canvas-edit) { height: 34px; } .canvas-ui .canvas-drag { width: 38px; } .canvas-ui :is(.canvas-resize, .canvas-side) { width: 18px; height: 18px; } }
+
+/* Rotation handle below the selection, and the angle while turning. */
+.canvas-ui .canvas-rotate { position: absolute; left: 50%; bottom: 0; transform: translate(-50%, calc(100% + 16px)); width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #007aff; border: 2px solid #007aff; font: 700 14px/1 system-ui; touch-action: none; cursor: grab; box-shadow: 0 1px 4px #0003; }
+.canvas-ui .canvas-rotate:active { cursor: grabbing; }
+.canvas-angle { position: absolute; left: 50%; bottom: 0; transform: translate(-50%, calc(100% + 48px)); padding: 2px 7px; border-radius: 6px; background: #8b3dff; color: #fff; font: 600 11px/1.5 system-ui; pointer-events: none; }
+
+/* Empty space (where a free-moved item used to be): a faint outline, fully shown only when hovered or selected. Visitors never see it. */
+html.canvas-editing .space { border-radius: 12px; outline: 1px dashed #8b3dff40; outline-offset: -1px; position: relative; transition: outline-color .15s, background .15s; }
+html.canvas-editing .space::after { content: 'Empty space'; position: absolute; inset: 0; display: grid; place-items: center; font: 600 11px system-ui; color: #8b3dffb0; opacity: 0; transition: opacity .15s; }
+html.canvas-editing .space:is(:hover, .canvas-selected) { outline: 1.5px dashed #8b3dff99; background: repeating-linear-gradient(135deg, #8b3dff12 0 8px, transparent 8px 16px); }
+html.canvas-editing .space:is(:hover, .canvas-selected)::after { opacity: 1; }
+/* Typing on the page: the text can be selected and edited, with a clear outline. */
+html.canvas-editing .canvas-typing { cursor: text; outline: 2px solid #007aff !important; outline-offset: 4px; }
+html.canvas-editing .canvas-typing, html.canvas-editing .canvas-typing * { user-select: text; -webkit-user-select: text; cursor: text; }
+html.canvas-editing .canvas-typing [contenteditable="true"] { outline: none; caret-color: #007aff; }
+/* Several items selected: each outlined; the selection box while dragging on empty space. */
+html.canvas-editing .canvas-multi { outline: 1.5px solid #007aff !important; outline-offset: 3px; }
+.canvas-marquee { position: absolute; z-index: 160; pointer-events: none; border: 1px solid #007aff; background: #007aff1a; border-radius: 2px; }

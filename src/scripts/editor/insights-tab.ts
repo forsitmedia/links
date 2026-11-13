@@ -22,6 +22,10 @@ function itemName(id: string): string {
     if (!b) return 'Removed item';
     return b.title || ({ youtube: 'Video', image: 'Image', post: 'Post', profile: 'Profile' } as Record<string, string>)[b.type] || b.type;
   };
+  if (kind === 'go') { // a link inside a Link Menu
+    for (const b of cfg.blocks) { const e = b.items?.find((x) => x.id === rest); if (e) return `${e.title || hostname(e.url)} (${b.title || 'Link menu'})`; }
+    return 'Removed link';
+  }
   if (kind === 'play') return 'Played: ' + blockName(rest);
   return linkName(id) ?? blockName(id); // clicks recorded by the older Cloudflare version used the bare link id
 }

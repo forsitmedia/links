@@ -379,6 +379,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-
 .shape-rounded .shape-sample { border-radius: 7px; }
 .shape-pill .shape-sample { border-radius: 999px; }
 .shape-square .shape-sample { border-radius: 1px; }
+.fill-solid .shape-sample { border-radius: 7px; background: currentColor; }
+.fill-glass .shape-sample { border-radius: 7px; border-color: transparent; background: color-mix(in srgb, currentColor 28%, transparent); }
+.fill-outline .shape-sample { border-radius: 7px; }
 .canvas-social-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .canvas-social-picker button { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--sep); font-size: 11px; background: var(--card); }
 .canvas-social-picker button[aria-pressed="true"] { border-color: var(--blue); color: var(--blue); }
@@ -502,3 +505,105 @@ button.row:active { transition-duration: 0s; }
 @keyframes pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.12); } }
 .publish-status.done svg { animation: pop .5s cubic-bezier(.2,.9,.3,1.2); }
 .publish-status, .publish > * { animation: tab-in .3s ease both; }
+
+/* Tile size presets in the layout editor: a tiny outline of each widget shape. */
+.tile-presets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.tile-presets button { display: grid; justify-items: center; gap: 4px; padding: 7px 2px; font-size: 10px; }
+.tile-preset-icon { display: block; border: 1.5px solid currentColor; border-radius: 4px; }
+.preset-small { width: 14px; height: 14px; }
+.preset-medium { width: 30px; height: 14px; }
+.preset-large { width: 22px; height: 22px; margin-top: -4px; margin-bottom: -4px; }
+.preset-banner { width: 30px; height: 8px; margin-block: 3px; }
+.preset-circle { width: 14px; height: 14px; border-radius: 50%; }
+
+/* Bold / italic / underline / crossed-out buttons over text boxes. */
+.format-bar { display: flex; align-items: center; gap: 6px; width: 100%; }
+.format-button { width: 36px; height: 32px; border-radius: 8px; background: var(--fill); color: var(--text, inherit); font-size: 15px; }
+.format-button:active, .format-button[aria-pressed="true"] { background: var(--blue); color: #fff; }
+.format-hint { margin-left: auto; font-size: 11px; color: var(--sec); }
+.format-gap { width: 1px; height: 22px; margin: 0 2px; background: var(--sep); }
+.format-bar { flex-wrap: wrap; }
+
+.cred-entry-actions { display: flex; gap: 14px; justify-content: flex-end; }
+
+.card-picker { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.fill-card-solid .shape-sample { border-radius: 7px; border-color: transparent; background: color-mix(in srgb, currentColor 55%, transparent); }
+.fill-none .shape-sample { border-radius: 7px; border-style: dashed; opacity: .5; }
+
+/* Shape picker. */
+.shape-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; width: 100%; }
+.shape-cell { aspect-ratio: 1; border-radius: 12px; background: var(--fill); display: grid; place-items: center; padding: 8px; color: var(--text, #000); }
+.shape-cell.on { outline: 2px solid var(--blue); outline-offset: -2px; }
+.shape-thumb, .shape-thumb svg { display: block; width: 100%; height: 100%; }
+.shape-colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 10px; justify-items: center; width: 100%; }
+.shape-color { width: 34px; height: 34px; border-radius: 50%; box-shadow: inset 0 0 0 1px #0002; color: var(--text, #000); }
+.shape-color.on { outline: 2px solid var(--blue); outline-offset: 3px; }
+
+/* Free move toggle and info in the layout panel. */
+.canvas-tools .canvas-free { color: #8b3dff; }
+.canvas-tools .canvas-free.on { background: #8b3dff; color: #fff; }
+.canvas-free-info { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding: 8px 10px; border-radius: 9px; background: #8b3dff14; color: #8b3dff; font-size: 12px; }
+.canvas-free-info button { padding: 4px 9px; border-radius: 7px; background: #8b3dff; color: #fff; font-size: 12px; }
+
+/* Undo / Redo / Guides above the canvas: big and always visible. */
+.history-bar { display: flex; align-items: center; gap: 6px; }
+.history-btn { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 6px 12px; border-radius: 10px; background: var(--card); box-shadow: 0 1px 3px #0000001a, inset 0 0 0 1px var(--sep); color: var(--blue); font-size: 17px; font-weight: 600; }
+.history-btn span { font-size: 13px; }
+.history-btn:disabled { color: var(--sec); opacity: .5; }
+.history-btn:not(:disabled):active { transform: scale(.96); }
+.guides-btn { color: var(--sec); }
+.guides-btn.on { background: #8b3dff; color: #fff; box-shadow: none; }
+@media (max-width: 520px) { .history-btn span { display: none; } .history-btn { padding: 6px 10px; } }
+.stage-head .btn-text { white-space: nowrap; }
+
+.canvas-tidy { width: 100%; margin-top: 10px; min-height: 40px; border-radius: 10px; background: #8b3dff; color: #fff; font-size: 14px; font-weight: 600; }
+
+.canvas-actions .canvas-delete { color: #ff3b30; }
+
+/* Compact inspector: one line per slider, small tiles, tight sections. */
+.canvas-inspector .canvas-tools button, .canvas-inspector .canvas-actions button, .canvas-inspector .canvas-widths:not(.tile-presets) button, .canvas-inspector .canvas-parts button { min-height: 30px; padding: 4px 8px; }
+.canvas-inspector .canvas-tools button[data-undo], .canvas-inspector .canvas-tools button[data-redo] { font-size: 17px; padding: 0 6px; }
+.canvas-inspector .canvas-actions, .canvas-inspector .canvas-widths, .canvas-inspector .canvas-parts { gap: 5px; margin-top: 6px; }
+.canvas-inspector .canvas-range { grid-template-columns: 76px minmax(0, 1fr) 40px; align-items: center; gap: 8px; margin-top: 4px; font-size: 11px; color: var(--sec); }
+.canvas-inspector .canvas-range > span { display: contents; }
+.canvas-inspector .canvas-range output { order: 3; text-align: right; font-size: 11px; }
+.canvas-inspector .canvas-range input { order: 2; min-height: 22px; margin: 0; }
+.canvas-inspector .canvas-text-controls { margin-top: 6px; }
+.canvas-inspector .canvas-shapes { margin-top: 10px; }
+.canvas-inspector .canvas-shapes > p { margin-bottom: 4px; }
+.canvas-inspector .shape-picker { gap: 5px; }
+.canvas-inspector .shape-option { min-height: 0; gap: 4px; padding: 6px 4px; border-radius: 8px; font-size: 11px; }
+.canvas-inspector .shape-sample { width: 100%; height: 12px; }
+.canvas-inspector .font-chips { gap: 3px; }
+.canvas-inspector .font-chip { padding: 3px 1px; border-radius: 7px; }
+.canvas-inspector .font-chip b { font-size: 14px; }
+.canvas-inspector .font-chip span { font-size: 8.5px; white-space: nowrap; }
+.canvas-inspector .canvas-details { margin-top: 8px; padding-top: 6px; }
+.canvas-inspector .canvas-actions button { white-space: nowrap; }
+.canvas-inspector .tile-style .seg button { font-size: 11px; padding-inline: 3px; }
+.canvas-inspector .canvas-range output { cursor: text; border-radius: 4px; }
+.canvas-inspector .canvas-range output:hover { background: var(--fill); color: var(--blue); }
+.canvas-inspector .canvas-range input.canvas-range-edit { order: 3; width: 40px; min-height: 0; margin: 0; padding: 1px 3px; border: 1px solid var(--blue); border-radius: 5px; font: inherit; font-size: 11px; text-align: right; background: var(--card); color: var(--text, inherit); }
+.canvas-inspector .canvas-weight { margin-top: 8px; }
+.canvas-inspector .canvas-weight > p { color: var(--sec); font-size: 11px; margin-bottom: 4px; }
+.canvas-inspector .canvas-weight .seg button { font-size: 11px; padding-inline: 3px; }
+
+/* Voice message recorder. */
+.voice-rec { display: flex; align-items: center; gap: 14px; }
+.voice-rec-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; background: #ff3b30; color: #fff; font-size: 15px; font-weight: 600; }
+.voice-rec-btn.stop { margin-left: auto; background: var(--fill); color: #ff3b30; }
+.voice-rec-dot { width: 12px; height: 12px; border-radius: 50%; background: #ff3b30; animation: rec-blink 1s ease-in-out infinite; }
+.voice-rec-time { font-variant-numeric: tabular-nums; font-size: 15px; }
+@keyframes rec-blink { 50% { opacity: .25; } }
+.voice-preview { width: 100%; }
+.row-note { padding: 0 16px 12px; font-size: 12px; line-height: 1.4; color: var(--sec); }
+.music-select, .effect-select { width: 100%; padding: 8px 10px; border-radius: 9px; border: 0; background: var(--fill); color: inherit; font: inherit; font-size: 15px; }
+.group [hidden] { display: none !important; }
+.image-range output { cursor: text; border-radius: 4px; padding: 0 3px; }
+.image-range output:hover { background: var(--fill); color: var(--blue); }
+.value-edit { width: 52px; padding: 1px 4px; border: 1px solid var(--blue); border-radius: 5px; font: inherit; text-align: right; background: var(--card); color: inherit; }
+.align-bar { display: flex; align-items: center; gap: 3px; margin-top: 8px; padding: 3px; border-radius: 9px; background: var(--fill); }
+.align-btn { flex: 1; display: grid; place-items: center; height: 28px; border-radius: 7px; color: var(--sec); }
+.align-btn.on { background: var(--card); color: var(--blue); box-shadow: 0 1px 3px #0002; }
+.align-btn:disabled { opacity: .35; cursor: default; }
+.align-sep { width: 1px; height: 18px; background: var(--sep); margin: 0 3px; }

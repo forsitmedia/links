@@ -7,8 +7,8 @@ import { pickImage } from './upload';
 import { videoDetails } from '../../lib/video-details';
 import { adjustImage } from './image-editor';
 import { imageFrameStyle } from '../../lib/image-frame';
-import { buttonShape, usesButton } from '../../lib/button-shape';
-import { shapePicker } from './shape-picker';
+import { buttonShape, buttonStyle, usesButton } from '../../lib/button-shape';
+import { shapePicker, stylePicker } from './shape-picker';
 import { tileStylePicker } from './tile-style-picker';
 import { h, group, navRow, inputRow, textareaRow, switchRow, dangerRow, sheet, svg, toast, segmented } from './ui';
 
@@ -44,9 +44,10 @@ export function linkSheet(link: Link, isNew = false) {
       inputRow('Title', link.title, (v) => { link.title = v; changed(); }, { placeholder: 'My website' }),
       inputRow('URL', link.url, (v) => { link.url = withScheme(v); changed(); }, { type: 'url', placeholder: 'yourwebsite.com' })),
 
-    usesButton(link, state.cfg.look.template) ? group({ header: 'Button shape', footer: 'Choose a shape for this button. Other buttons keep their own design.' },
+    usesButton(link, state.cfg.look.template) ? group({ header: 'Button design', footer: 'Choose a shape and fill for this button. Other buttons keep their own design.' },
       h('div', { class: 'row stacked' }, shapePicker(buttonShape(link, state.cfg.look.template), (value) => { link.buttonShape = value; changed(); })),
-      navRow({ title: 'Use Template Shape', onClick: () => { link.buttonShape = undefined; changed(); draw(); } })) : document.createDocumentFragment(),
+      h('div', { class: 'row stacked' }, stylePicker(buttonStyle(link), (value) => { link.buttonStyle = value; changed(); })),
+      navRow({ title: 'Use Template Design', onClick: () => { link.buttonShape = undefined; link.buttonStyle = undefined; changed(); draw(); } })) : document.createDocumentFragment(),
 
     group({ footer: 'With an image, the link shows as a photo tile. Upload one, or paste the address of an image that is online (for example a logo): it loads from that website.' },
       navRow({
