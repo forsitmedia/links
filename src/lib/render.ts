@@ -280,7 +280,7 @@ function linkMenu(block: PageBlock, data: string, open: boolean) {
   const title = block.title?.trim() || 'More links';
   return `<details class="link-menu" name="yourlinki-menu"${open ? ' open' : ''} ${data}>`
     + `<summary class="row-link glass menu-toggle"><span>${esc(title)}</span><i class="menu-chevron">${icon('down', 18)}</i></summary>`
-    + `<div class="menu-links">${items.length ? items.map((e, i) => `<a class="row-link glass" href="${esc(safeUrl(e.url))}" rel="noopener" data-stat="go:${esc(e.id)}" style="--n:${Math.min(i, 12)}"><span>${esc(e.title)}</span>${icon('arrow', 16)}</a>`).join('')
+    + `<div class="menu-links">${items.length ? items.map((e, i) => { const thumb = youtubeCover(e.url, e.image); return `<a class="row-link glass${thumb ? ' has-thumb' : ''}" href="${esc(safeUrl(e.url))}" rel="noopener" data-stat="go:${esc(e.id)}" style="--n:${Math.min(i, 12)}">${thumb ? `<img class="menu-thumb" src="${esc(thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}<span>${esc(e.title)}</span>${icon('arrow', 16)}</a>`; }).join('')
       : '<p class="menu-empty">No links yet</p>'}</div></details>`;
 }
 const spaceBlock = (block: PageBlock) => `<div class="space" aria-hidden="true" ${blockAttributes(block)}></div>`;

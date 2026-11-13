@@ -450,12 +450,18 @@ export function menuSheet(block: PageBlock, isNew = false) {
   const itemGroup = (e: MenuItem, i: number) => group({ header: `Link ${i + 1}` },
     inputRow('Title', e.title, (v) => { e.title = v; changed(); }, { max: 120, placeholder: i === 0 ? 'My latest project' : 'Title' }),
     inputRow('URL', e.url, (v) => { e.url = withScheme(v); changed(); }, { type: 'url', placeholder: 'yourwebsite.com' }),
+    navRow({
+      lead: e.image ? h('img', { src: e.image, alt: '' }) : svg('photo', 18),
+      title: e.image ? 'Change Picture' : 'Add Picture', subtitle: 'Optional small preview',
+      onClick: async () => { try { const url = await pickImage(200); if (url) { e.image = url; changed(); draw(); } } catch (err: any) { toast(err.message); } },
+    }),
     h('div', { class: 'row cred-entry-actions' },
+      e.image && h('button', { type: 'button', class: 'btn-text', onclick: () => { e.image = undefined; changed(); draw(); } }, 'Remove picture'),
       h('button', { type: 'button', class: 'btn-text', disabled: i === 0, onclick: () => { items.splice(i - 1, 0, items.splice(i, 1)[0]); changed(); draw(); } }, 'Move up'),
       h('button', { type: 'button', class: 'btn-text', disabled: i === items.length - 1, onclick: () => { items.splice(i + 1, 0, items.splice(i, 1)[0]); changed(); draw(); } }, 'Move down'),
       h('button', { type: 'button', class: 'btn-text red', onclick: () => { items.splice(i, 1); changed(); draw(); } }, 'Remove')));
   const draw = () => body.replaceChildren(
-    group({ footer: 'The button people tap. It opens down into the links below, like a folder: Videos, Projects, Shop…' },
+    group({ footer: 'The button people tap. It opens down into the links below, like a folder: Videos, Projects, Shop… YouTube links show their video cover by themselves.' },
       inputRow('Button', block.title ?? '', (v) => { block.title = v; changed(); }, { max: 120, placeholder: 'My videos' })),
     ...items.map(itemGroup),
     items.length < 30 ? group({}, actionRow('Add Link', () => { items.push({ id: uid(), title: '', url: '' }); changed(); draw(); })) : document.createDocumentFragment(),

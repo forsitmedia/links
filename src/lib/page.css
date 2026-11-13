@@ -746,3 +746,7 @@ html, body { overflow-x: hidden; }
   .link-menu::details-content, .page .link-menu .menu-chevron { transition: none; }
   .link-menu[open] .menu-links > * { animation: none; }
 }
+/* Menu links can show a small picture on the left (YouTube links show their video cover by themselves). */
+.menu-links .row-link.has-thumb { padding-left: 7px; }
+.menu-links .menu-thumb { flex: none; width: 36px; height: 36px; border-radius: 10px; object-fit: cover; display: block; background: var(--glass); }
+.template-classic .menu-links .row-link.has-thumb, .template-cover .menu-links .row-link.has-thumb { justify-content: flex-start; }
